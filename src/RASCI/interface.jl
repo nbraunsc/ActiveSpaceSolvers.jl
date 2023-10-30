@@ -170,7 +170,7 @@ function calc_ndets(no,nelec)
     return factorial(no)÷(factorial(nelec)*factorial(no-nelec))
 end
 
-function calc_ras_dim(prob::RASCIAnsatz)
+function calc_ras_dim_old(prob::RASCIAnsatz)
     all_cats_a = Vector{HP_Category_CA}()#={{{=#
     all_cats_b = Vector{HP_Category_CA}()
     categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(prob)
@@ -227,6 +227,58 @@ function calc_ras_dim(prob::RASCIAnsatz)
         end
     end
     return max_a, max_b,count#=}}}=#
+end
+
+function calc_ras_dim(prob::RASCIAnsatz)
+    all_cats_a = Vector{Tuple{Vector{Int}, Vector{Int}}}()
+    all_cats_b = Vector{Tuple{Vector{Int}, Vector{Int}}}()
+    categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(prob)
+    cats_a = deepcopy(categories)
+    cats_b = deepcopy(categories)
+    fock_list_a, del_at_a = make_fock_from_categories(categories, prob, "alpha")
+    deleteat!(cats_a, del_at_a)
+    len_cat_a = length(cats_a)
+        
+    fock_list_b, del_at_b = make_fock_from_categories(categories, prob, "beta")
+    deleteat!(cats_b, del_at_b)
+    len_cat_b = length(cats_b)
+    
+    #compute alpha configs
+    connected = make_spincategory_connections(cats_a, cats_b, prob)
+    as = compute_config_dict(fock_list_a, prob, "alpha")
+    rev_as = Dict(value => key for (key, value) in as)
+    max_a = length(as)
+
+    for j in 1:len_cat_a
+        idxas = Vector{Int}()
+        graph_a = make_cat_graphs(fock_list_a[j], prob)
+        idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
+        push!(all_cats_a, (connected[j], idxas))
+    end
+        
+    #compute beta configs
+    connected_b = make_spincategory_connections(cats_b, cats_a, prob)
+    bs = compute_config_dict(fock_list_b, prob, "beta")
+    rev_bs = Dict(value => key for (key, value) in bs)
+    max_b = length(bs)
+
+    for j in 1:len_cat_b
+        idxbs = Vector{Int}()
+        graph_b = make_cat_graphs(fock_list_b[j], prob)
+        idxbs = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_b, 1, graph_b.max, idxbs, rev_bs) 
+        push!(all_cats_b, (connected_b[j], idxbs))
+    end
+    
+    count = 0
+    for i in 1:length(all_cats_a)
+        dima = length(all_cats_a[i][2])
+        for j in all_cats_a[i][1]
+            dimb = length(all_cats_b[j][2])
+            count += dima*dimb
+        end
+    end
+
+    return max_a, max_b,count
 end
 
 """
