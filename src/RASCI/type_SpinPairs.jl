@@ -28,6 +28,26 @@ function make_spin_pairs(prob::RASCIAnsatz)
 end
 
 """
+    make_spin_pairs(prob::RASCIAnsatz)
+
+"""
+function make_new_spin_pairs(prob::RASCIAnsatz)
+    spin_pairs = Vector{Spin_Pair}()
+    a_categories = ActiveSpaceSolvers.RASCI.make_new_categories(prob, spin="alpha")
+    b_categories = ActiveSpaceSolvers.RASCI.make_new_categories(prob, spin="beta")
+    for i in 1:length(a_categories)
+        dima = length(a_categories[i].idxs)
+        for j in a_categories[i].connected 
+            dimb = length(b_categories[j].idxs)
+            x = Spin_Pair((i, j), dima*dimb)
+            push!(spin_pairs, x)
+        end
+    end
+    return spin_pairs, a_categories, b_categories
+end
+
+
+"""
     make_spin_pairs(prob::RASCIAnsatz, a_categories::Vector{<:HP_Category}, b_categories::Vector{<:HP_Category})
 
 """

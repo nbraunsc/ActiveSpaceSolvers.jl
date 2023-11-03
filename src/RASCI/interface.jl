@@ -22,6 +22,18 @@ Type containing all the metadata needed to define a RASCI problem
     max_h::Int  #max number of holes in ras1 (GLOBAL, Slater Det)
     max_p::Int #max number of particles in ras3 (GLOBAL, Slater Det)
 """
+#struct RASCIAnsatz <: Ansatz
+#    no::Int  # number of orbitals
+#    na::Int  # number of alpha
+#    nb::Int  # number of beta
+#    dima::Int 
+#    dimb::Int 
+#    dim::Int
+#    ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
+#    max_h::Int  #max number of holes in ras1 (GLOBAL, Slater Det)
+#    max_p::Int #max number of particles in ras3 (GLOBAL, Slater Det)
+#end
+
 struct RASCIAnsatz <: Ansatz
     no::Int  # number of orbitals
     na::Int  # number of alpha
@@ -32,6 +44,12 @@ struct RASCIAnsatz <: Ansatz
     ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
     max_h::Int  #max number of holes in ras1 (GLOBAL, Slater Det)
     max_p::Int #max number of particles in ras3 (GLOBAL, Slater Det)
+    a_configs::Dict{Vector{Int32}, Int}
+    b_configs::Dict{Vector{Int32}, Int}
+    cats_a::Vector{Tuple{Vector{Int}, Int, Vector{Int}}} #list of categories (connected, shift, global idxs in category)
+    cats_b::Vector{Tuple{Vector{Int}, Int, Vector{Int}}} #list of categories (connected, shift, global idxs in category)
+    fock_list_a::Vector{Tuple{Int, Int, Int}}
+    fock_list_b::Vector{Tuple{Int, Int, Int}}
 end
 
 """
@@ -45,6 +63,18 @@ Constructor
 - `max_h`: Max number of holes in RAS1
 - `max_p`: Max number of particles in RAS3
 """
+#function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces[3])
+#    na <= no || throw(DimensionMismatch)
+#    nb <= no || throw(DimensionMismatch)
+#    sum(ras_spaces) == no || throw(DimensionMismatch)
+#    ras_spaces = convert(SVector{3,Int},collect(ras_spaces))
+#    na = convert(Int, na)
+#    nb = convert(Int, nb)
+#    tmp = RASCIAnsatz(no, na, nb, ras_spaces, max_h, max_p)
+#    dima, dimb, ras_dim = calc_ras_dim(tmp)
+#    return RASCIAnsatz(no, na, nb, dima, dimb, ras_dim, ras_spaces, max_h, max_p);
+#end
+
 function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces[3])
     na <= no || throw(DimensionMismatch)
     nb <= no || throw(DimensionMismatch)
@@ -53,12 +83,13 @@ function RASCIAnsatz(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces
     na = convert(Int, na)
     nb = convert(Int, nb)
     tmp = RASCIAnsatz(no, na, nb, ras_spaces, max_h, max_p)
-    dima, dimb, ras_dim = calc_ras_dim(tmp)
-    return RASCIAnsatz(no, na, nb, dima, dimb, ras_dim, ras_spaces, max_h, max_p);
+    dima, dimb, ras_dim, a_configs, b_configs, cats_a, cats_b, fock_list_a, fock_list_b = calc_new_ras_dim(tmp)
+    return RASCIAnsatz(no, na, nb, dima, dimb, ras_dim, ras_spaces, max_h, max_p, a_configs, b_configs, cats_a, cats_b, fock_list_a, fock_list_b);
 end
 
 function RASCIAnsatz(no::Int, na::Int, nb::Int, ras_spaces::SVector{3,Int}, max_h, max_p)
-    return RASCIAnsatz(no, na, nb, 0, 0, 0, ras_spaces, max_h, max_p);
+    return RASCIAnsatz(no, na, nb, 0, 0, 0, ras_spaces, max_h, max_p, Dict{Vector{Int32}, Int}(), Dict{Vector{Int32}, Int}(), Vector{Tuple{Vector{Int}, Int, Vector{Int}}}(), Vector{Tuple{Vector{Int}, Int, Vector{Int}}}(),Vector{Tuple{Int, Int, Int}}(), Vector{Tuple{Int, Int, Int}}());
+    #return RASCIAnsatz(no, na, nb, 0, 0, 0, ras_spaces, max_h, max_p);
 end
 
 function Base.display(p::RASCIAnsatz)
@@ -79,7 +110,8 @@ Get LinearMap with takes a vector and returns action of H on that vector
 - prb:  `RASCIAnsatz` object
 """
 function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
-    spin_pairs, a_categories, b_categories, = ActiveSpaceSolvers.RASCI.make_spin_pairs(prb)
+    spin_pairs, a_categories, b_categories = ActiveSpaceSolvers.RASCI.make_new_spin_pairs(prb)
+    #spin_pairs, a_categories, b_categories, = ActiveSpaceSolvers.RASCI.make_spin_pairs(prb)
 
     iters = 0
     function mymatvec(v)
@@ -123,7 +155,8 @@ Get LinearMap with takes a vector and returns action of H on that vector
 - prb:  `FCIAnsatz` object
 """
 function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
-    spin_pairs, a_categories, b_categories, = ActiveSpaceSolvers.RASCI.make_spin_pairs(prb)
+    #spin_pairs, a_categories, b_categories, = ActiveSpaceSolvers.RASCI.make_spin_pairs(prb)
+    spin_pairs, a_categories, b_categories = ActiveSpaceSolvers.RASCI.make_new_spin_pairs(prb)
 
     iters = 0
     function mymatvec(v)
@@ -194,6 +227,7 @@ function calc_ras_dim_old(prob::RASCIAnsatz)
         idxas = Vector{Int}()
         graph_a = make_cat_graphs(fock_list_a[j], prob)
         idxas = ActiveSpaceSolvers.RASCI.dfs_fill_idxs(graph_a, 1, graph_a.max, idxas, rev_as) 
+        display(idxas)
         lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
         cat_lu = zeros(Int, graph_a.no, graph_a.no, length(idxas))
         push!(all_cats_a, HP_Category_CA(j, cats_a[j], connected[j], idxas, 0, lu, cat_lu))
@@ -279,6 +313,90 @@ function calc_ras_dim(prob::RASCIAnsatz)
     end
 
     return max_a, max_b,count
+end
+
+function calc_new_ras_dim(prob::RASCIAnsatz)
+    all_cats_a = Vector{Tuple{Vector{Int}, Int, Vector{Int}}}()
+    all_cats_b = Vector{Tuple{Vector{Int}, Int, Vector{Int}}}()
+    categories = ActiveSpaceSolvers.RASCI.generate_spin_categories(prob)
+    cats_a = deepcopy(categories)
+    cats_b = deepcopy(categories)
+    fock_list_a, del_at_a = make_fock_from_categories(categories, prob, "alpha")
+    deleteat!(cats_a, del_at_a)
+    len_cat_a = length(cats_a)
+        
+    fock_list_b, del_at_b = make_fock_from_categories(categories, prob, "beta")
+    deleteat!(cats_b, del_at_b)
+    len_cat_b = length(cats_b)
+    
+    ras1, ras2, ras3 = make_rasorbs(prob.ras_spaces[1], prob.ras_spaces[2], prob.ras_spaces[3], prob.no)
+    
+    #compute alpha configs
+    connected = make_spincategory_connections(cats_a, cats_b, prob)
+    as = compute_config_dict(fock_list_a, prob, "alpha")
+    rev_as = Dict(value => key for (key, value) in as)
+    max_a = length(as)
+    fock_list_counta = configs_in_each_fock(as, rev_as, fock_list_a, ras1, ras2, ras3)
+    
+    shifta = 0
+    for j in 1:length(fock_list_a)
+        idxas = fock_list_counta[j]
+        sort!(idxas)
+        push!(all_cats_a, (connected[j], shifta, idxas))
+        shifta += length(idxas)
+    end
+        
+    #compute beta configs
+    connected_b = make_spincategory_connections(cats_b, cats_a, prob)
+    bs = compute_config_dict(fock_list_b, prob, "beta")
+    rev_bs = Dict(value => key for (key, value) in bs)
+    max_b = length(bs)
+    fock_list_countb = configs_in_each_fock(bs, rev_bs, fock_list_b, ras1, ras2, ras3)
+    
+    shiftb = 0
+    for j in 1:length(fock_list_b)
+        idxbs = fock_list_countb[j]
+        sort!(idxbs)
+        push!(all_cats_b, (connected_b[j], shiftb, idxbs))
+        shiftb += length(idxbs)
+    end
+    
+    count = 0
+    for i in 1:length(all_cats_a)
+        dima = length(all_cats_a[i][3])
+        for j in all_cats_a[i][1]
+            dimb = length(all_cats_b[j][3])
+            count += dima*dimb
+        end
+    end
+
+    return max_a, max_b, count, rev_as, rev_bs, all_cats_a, all_cats_b, fock_list_a, fock_list_b
+end
+
+function configs_in_each_fock(as, revas, fock_list, ras1, ras2, ras3)
+    fock_list_count = Vector{Vector{Int}}()
+    for fock in fock_list
+        tmp = []
+        for i in keys(as)
+            config = as[i]
+            fock_tmp = (0,0,0)
+            for i in config
+                if i in ras1
+                    fock_tmp = (fock_tmp[1]+1, fock_tmp[2], fock_tmp[3])
+                elseif i in ras2
+                    fock_tmp = (fock_tmp[1], fock_tmp[2]+1, fock_tmp[3])
+                elseif i in ras3
+                    fock_tmp = (fock_tmp[1], fock_tmp[2], fock_tmp[3]+1)
+                end
+            end
+
+            if fock_tmp == fock
+                push!(tmp, i)
+            end
+        end
+        push!(fock_list_count, tmp)
+    end
+    return fock_list_count
 end
 
 """

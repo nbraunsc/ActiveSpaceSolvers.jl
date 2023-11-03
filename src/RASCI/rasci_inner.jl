@@ -1491,7 +1491,8 @@ end
 """
 """
 function apply_a_dumb(config, orb)
-    spot = first(findall(x->x==orb, config))
+    #spot = first(findall(x->x==orb, config))
+    spot = findfirst(item -> item == orb, config)
     new = Vector(config)
     
     splice!(new, spot)

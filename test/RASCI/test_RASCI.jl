@@ -9,11 +9,10 @@ using NPZ
 using JLD2
 
 @load "RASCI/ras_h6/_ras_solution.jld2"
-
 #v = abs.(v)
 
 @testset "RASCI (H6, 3α, 3β)" begin
-    display(ras)
+    ras = RASCIAnsatz(6, 3, 3, (2, 2, 2), max_h=1, max_p=1)
     println(solver)
     solution = ActiveSpaceSolvers.solve(ints, ras, solver)
     display(solution)
@@ -29,6 +28,7 @@ using JLD2
 end
 
 @testset "RASCI expval of S^2" begin
+    ras = RASCIAnsatz(6, 3, 3, (2, 2, 2), max_h=1, max_p=1)
     display(ras)
 
     s2_new = ActiveSpaceSolvers.RASCI.compute_S2_expval(ras_sol.vectors, ras)

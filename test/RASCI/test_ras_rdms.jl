@@ -9,6 +9,7 @@ using QCBase
 @load "RASCI/ras_h6/_ras_solution.jld2"
 
 function test_rdms(problem, ints::InCoreInts, solver)
+    ras = RASCIAnsatz(6, 3, 3, (2, 2, 2), max_h=1, max_p=1)
     solution = ActiveSpaceSolvers.solve(ints, problem, solver)
     e = solution.energies
     v = solution.vectors
@@ -26,6 +27,7 @@ function test_rdms(problem, ints::InCoreInts, solver)
 end
 
 @testset "RASCI Contract RDMS with ints to get E" begin
+    ras = RASCIAnsatz(6, 3, 3, (2, 2, 2), max_h=1, max_p=1)
     solver = SolverSettings(nroots=1, tol=1e-6, maxiter=12)
     e, e_testing = test_rdms(ras, ints, solver)
     @test isapprox(e_testing, e, atol=10e-13)

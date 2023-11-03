@@ -143,11 +143,6 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
         #compute configs
         bs = compute_config_dict(fock_list_b, prob, "beta")
         rev_bs = Dict(value => key for (key, value) in bs)
-        #bs_old = ActiveSpaceSolvers.RASCI.compute_configs(prob)[2]
-        #for i in keys(rev_bs)
-        #    idx = bs_old[i]
-        #    rev_bs[i] = idx
-        #end
         max_b = length(bs)
         shift = 0
         for j in 1:len_cat_b
@@ -170,6 +165,65 @@ function make_categories(prob::RASCIAnsatz; spin="alpha")
         return all_cats
     end#=}}}=#
 end
+
+function make_new_categories(prob::RASCIAnsatz; spin="alpha")
+    all_cats = Vector{HP_Category_CA}()
+    x = [(0, 0), (0, 1), (1, 0), (1, 1)] 
+    if spin == "alpha"
+        #this reverses the config dictionary to get the index as the key 
+        for j in 1:length(prob.cats_a)
+            idxas = prob.cats_a[j][3]
+            lu, cat_lu = ActiveSpaceSolvers.RASCI.fill_single_excitation_lu(prob.a_configs, idxas, prob.no, prob.cats_a)
+            push!(all_cats, HP_Category_CA(j, (0,0), prob.cats_a[j][1], idxas, prob.cats_a[j][2], lu, cat_lu))
+        end
+        return all_cats
+
+    else
+        for j in 1:length(prob.cats_b)
+            idxbs = prob.cats_b[j][3]
+            lu, cat_lu = ActiveSpaceSolvers.RASCI.fill_single_excitation_lu(prob.b_configs, idxbs, prob.no, prob.cats_b)
+            push!(all_cats, HP_Category_CA(j, (0,0), prob.cats_b[j][1], idxbs, prob.cats_b[j][2], lu, cat_lu))
+        end
+        return all_cats
+    end#=}}}=#
+end
+
+function fill_single_excitation_lu(config_dict, idxs, no, cats) #cats is either prob.cats_a or prob.cats_b
+    lu = zeros(Int, no, no, length(idxs))
+    cat_lu = zeros(Int, no, no, length(idxs))
+    rev_configs = Dict(value => key for (key, value) in config_dict)
+    cat_org = find_cat(idxs[1], cats)
+    for i in idxs
+        config = rev_configs[i]
+        idx_loc = i-cats[cat_org][2]
+        for orb in config
+            for orb_c in 1:no
+                sign_a, new = ActiveSpaceSolvers.RASCI.apply_a_dumb(config, orb)
+                sign_c, final_c = ActiveSpaceSolvers.RASCI.apply_c_dumb(new, orb_c)
+                if haskey(config_dict, final_c)
+                    idx = config_dict[final_c]
+                    cat = find_cat(idx, cats)
+                    sgn = sign_a*sign_c
+                    lu[orb, orb_c, idx_loc] = sgn*idx
+                    cat_lu[orb, orb_c, idx_loc] = cat
+                end
+            end
+        end
+    end
+    return lu, cat_lu
+end
+
+
+function find_cat(idx::Int, cats::Vector{Tuple{Vector{Int}, Int, Vector{Int}}})
+    for cat in 1:length(cats)
+        if idx in cats[cat][3]
+            return cat
+        else
+            continue
+        end
+    end
+end
+
 
 """
     compute_config_dict(fock_list, prob::RASCIAnsatz, spin="alpha")
