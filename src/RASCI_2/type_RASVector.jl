@@ -274,11 +274,11 @@ function fill_lu(v::RASVector, ras_spaces::Tuple{Int, Int, Int})
     return a_lu, b_lu
 end
 
-function haskey(v::RASVector, fock_curr::Tuple{Int, Int, Int}; spin="alpha")
+function iskey(v::RASVector, fock_curr::Tuple{Int, Int, Int}; spin="alpha")
     if spin == "alpha"
         for (fock, vec) in v
             if (fock_curr, fock[2]) == fock
-                return true
+                return true, fock[2]
             else
                 continue
             end
@@ -286,13 +286,13 @@ function haskey(v::RASVector, fock_curr::Tuple{Int, Int, Int}; spin="alpha")
     else
         for (fock, vec) in v
             if (fock[1], fock_curr) == fock
-                return true
+                return true, fock[1]
             else
                 conitnue
             end
         end
     end
-    return false
+    return false, fock[1]
 end
 
 
@@ -469,8 +469,9 @@ function sigma_two(v::RASVector, ints::InCoreInts, ras_spaces::Tuple{Int, Int, I
     single_excit = make_single_excit(ras_spaces)
     dima = get_dima(v)
     gkl = get_gkl(ints, prob) 
-    
+
     F = zeros(Float64, dima)
+
     for Ia in 1:dima
         comb_kl = 0
         comb_ij = 0
