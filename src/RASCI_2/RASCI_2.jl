@@ -1,4 +1,4 @@
-module RASCI
+module RASCI_2
 using ActiveSpaceSolvers
 using LinearMaps
 using InCoreIntegrals 
@@ -6,9 +6,8 @@ using Printf
 
 # includes
 include("interface.jl");
-include("type_SpinPairs.jl");
-include("TDMs.jl");
-include("rasci_inner.jl");
+include("type_SubspaceDeterminantString.jl");
+include("type_RASVector.jl");
 
 # import stuff so we can extend and export
 import LinearMaps: LinearMap
@@ -16,12 +15,8 @@ import LinearMaps: LinearMap
 #abstract type HP_Category end
 
 # Exports
-export RASCIAnsatz
-export HP_Category
-export Spin_Pair
-export build_H_matrix 
+export RASCIAnsatz_2
+export RASVector
 export LinearMap 
-export Spin_Categories
-
 
 end
