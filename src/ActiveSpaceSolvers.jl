@@ -67,6 +67,7 @@ export compute_operator_cca_aaa
 export compute_operator_cca_bbb      
 export compute_operator_cca_aba      
 export compute_operator_cca_abb      
+export compute_s2
 export svd_state
 export apply_sminus
 export apply_splus

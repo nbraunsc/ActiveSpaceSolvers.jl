@@ -142,7 +142,7 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
 end
 
 function calc_rdim(ras_spaces::SVector{3, Int}, na::Int, nb::Int, max_h::Int8, max_p::Int8, max_h2::Int8, max_p2::Int8)
-    a_blocks, fock_as = make_blocks(ras_spaces, na, max_h, max_p)
+    a_blocks, fock_as = make_blocks(ras_spaces, na, max_h, max_p)#={{{=#
     b_blocks, fock_bs = make_blocks(ras_spaces, nb, max_h, max_p)
     
     start = 0
@@ -172,7 +172,7 @@ function calc_rdim(ras_spaces::SVector{3, Int}, na::Int, nb::Int, max_h::Int8, m
                 end
             end
         end
-    end
+    end#=}}}=#
     return start
 end
 
@@ -390,6 +390,20 @@ function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts, prob::RASCIAnsatz_2
     Hmat = .5*(sig+sig')
     Hmat += 1.0I*ints.h0
     return Hmat
+end
+
+"""
+    compute_1rdm(sol::Solution{RASCIAnsatz,T}; root=1) where {T}
+"""
+function ActiveSpaceSolvers.compute_1rdm(sol::Solution{RASCIAnsatz_2,T}; root=1) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_1rdm(sol.ansatz, sol.vectors[:,root])
+end
+
+"""
+    compute_1rdm_2rdm(sol::Solution{A,T}; root=1) where {A,T}
+"""
+function ActiveSpaceSolvers.compute_1rdm_2rdm(sol::Solution{RASCIAnsatz_2,T}; root=1) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_1rdm_2rdm(sol.ansatz, sol.vectors[:,root])
 end
 
     

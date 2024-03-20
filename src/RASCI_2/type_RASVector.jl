@@ -181,8 +181,62 @@ function get_dimb(v::RASVector)
     return dimb#=}}}=#
 end
 
+function breakup_config(det::Vector{Int}, ras1, ras2, ras3)
+    det1 = Vector{Int}()
+    det2 = Vector{Int}()
+    det3 = Vector{Int}()
+    for i in det
+        if i in ras1
+            push!(det1, i)
+        elseif i in ras2
+            push!(det2, i)
+        else
+            push!(det3, i)
+        end
+    end
+    return det1, det2, det3
+end
+
+
+function apply_annihilation(det::Vector{Int}, orb_a)
+    sign_a =1#={{{=#
+    spot = findfirst(det.==orb_a)
+    splice!(det, spot)
+
+    if spot % 2 != 1
+        sign_a = -1
+    end
+    return sign_a, det
+end#=}}}=#
+function apply_creation(det::Vector{Int}, orb_c)
+    insert_here = 1#={{{=#
+    sign_c = 1
+    if orb_c in det
+        return 0, 0
+    end
+
+    if isempty(det)
+        det = [orb_c]
+    else
+        for i in 1:length(det)
+            if det[i] > orb_c
+                insert_here = i
+                break
+            else
+                insert_here += 1
+            end
+        end
+        insert!(det, insert_here, orb_c)
+    end
+
+    if insert_here % 2 != 1
+        sign_c = -1
+    end
+    return sign_c, det
+end#=}}}=#
+
 function apply_annihilation!(det1::Vector{Int}, det2::Vector{Int}, det3::Vector{Int}, orb_a)
-    sign_a = 1#={{{=#
+    sign_a =1#={{{=#
     if orb_a in det1
         spot = findfirst(det1.==orb_a)
         splice!(det1, spot)
@@ -409,8 +463,134 @@ function get_configs(ras_spaces, fock)
     return tmp#=}}}=#
 end
 
+function find_fock_delta_a(a, ras1, ras2, ras3)
+    delta = (0,0,0)#={{{=#
+    if a in ras1
+        delta =  (delta[1]-1, delta[2], delta[3])
+    elseif a in ras2
+        delta =  (delta[1], delta[2]-1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]-1)
+    end
+    return delta#=}}}=#
+end
 
+function find_fock_delta_c(c, ras1, ras2, ras3)
+    delta = (0,0,0)#={{{=#
+    if c in ras1
+        delta =  (delta[1]+1, delta[2], delta[3])
+    elseif c in ras2
+        delta =  (delta[1], delta[2]+1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]+1)
+    end
+    return delta#=}}}=#
+end
 
+function find_fock_delta_ca(a, c, ras1, ras2, ras3)
+    delta = (0,0,0)#={{{=#
+    if a in ras1
+        delta =  (delta[1]-1, delta[2], delta[3])
+    elseif a in ras2
+        delta =  (delta[1], delta[2]-1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]-1)
+    end
+    if c in ras1
+        delta =  (delta[1]+1, delta[2], delta[3])
+    elseif c in ras2
+        delta =  (delta[1], delta[2]+1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]+1)
+    end
+    return delta#=}}}=#
+end
+
+function find_fock_delta_cc(c, cc, ras1, ras2, ras3)
+    delta = (0,0,0)#={{{=#
+    if c in ras1
+        delta =  (delta[1]+1, delta[2], delta[3])
+    elseif c in ras2
+        delta =  (delta[1], delta[2]+1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]+1)
+    end
+    
+    if cc in ras1
+        delta =  (delta[1]+1, delta[2], delta[3])
+    elseif cc in ras2
+        delta =  (delta[1], delta[2]+1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]+1)
+    end
+    return delta#=}}}=#
+end
+
+function find_fock_delta_cca(a, c, cc, ras1, ras2, ras3)
+    delta = (0,0,0)#={{{=#
+    if a in ras1
+        delta =  (delta[1]-1, delta[2], delta[3])
+    elseif a in ras2
+        delta =  (delta[1], delta[2]-1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]-1)
+    end
+    
+    if c in ras1
+        delta =  (delta[1]+1, delta[2], delta[3])
+    elseif c in ras2
+        delta =  (delta[1], delta[2]+1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]+1)
+    end
+    
+    if cc in ras1
+        delta =  (delta[1]+1, delta[2], delta[3])
+    elseif cc in ras2
+        delta =  (delta[1], delta[2]+1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]+1)
+    end
+
+    return delta#=}}}=#
+end
+
+function find_fock_delta_ccaa(a, aa, c, cc, ras1, ras2, ras3)
+    delta = (0,0,0)#={{{=#
+    if a in ras1
+        delta =  (delta[1]-1, delta[2], delta[3])
+    elseif a in ras2
+        delta =  (delta[1], delta[2]-1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]-1)
+    end
+    
+    if aa in ras1
+        delta =  (delta[1]-1, delta[2], delta[3])
+    elseif aa in ras2
+        delta =  (delta[1], delta[2]-1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]-1)
+    end
+    
+    if c in ras1
+        delta =  (delta[1]+1, delta[2], delta[3])
+    elseif c in ras2
+        delta =  (delta[1], delta[2]+1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]+1)
+    end
+    
+    if cc in ras1
+        delta =  (delta[1]+1, delta[2], delta[3])
+    elseif cc in ras2
+        delta =  (delta[1], delta[2]+1, delta[3])
+    else
+        delta =  (delta[1], delta[2], delta[3]+1)
+    end
+
+    return delta#=}}}=#
+end
 
 """
 automate the types of single excitations, these will always be the same
@@ -859,6 +1039,10 @@ function compute_S2_expval(C::Matrix, P::RASCIAnsatz_2)
     v = RASVector(C, P)
     lu = fill_lu(v, P.ras_spaces)
     v = v.data
+    
+    ras1 = range(start=1, stop=P.ras_spaces[1])
+    ras2 = range(start=P.ras_spaces[1]+1,stop=P.ras_spaces[1]+P.ras_spaces[2])
+    ras3 = range(start=P.ras_spaces[1]+P.ras_spaces[2]+1, stop=P.ras_spaces[1]+P.ras_spaces[2]+P.ras_spaces[3])
 
     for (block1, vec) in v
         as = get_configs(P.ras_spaces, block1.focka)
@@ -920,8 +1104,12 @@ function compute_S2_expval(C::Matrix, P::RASCIAnsatz_2)
                             if bj ∉ config_a
 
                                 #Sp.Sm + Sm.Sp
-                                delta_a = get_fock_delta(ai, bj, P.ras_spaces)
-                                delta_b = get_fock_delta(bj, ai, P.ras_spaces)
+                                #delta_a = get_fock_delta(ai, bj, P.ras_spaces)
+                                #delta_b = get_fock_delta(bj, ai, P.ras_spaces)
+
+                                delta_a = find_fock_delta_ca(ai, bj, ras1, ras2, ras3)
+                                delta_b = find_fock_delta_ca(bj, ai, ras1, ras2, ras3)
+
                                 block2 = RasBlock(block1.focka.+delta_a, block1.fockb.+delta_b)
                                 haskey(v, block2) || continue
                                 La = lu[block1.focka][ai,bj,Ia]
@@ -945,21 +1133,297 @@ function compute_S2_expval(C::Matrix, P::RASCIAnsatz_2)
     return s2#=}}}=#
 end
 
-function apply_S2_matrix(prob, v)
+function apply_S2_matrix(P::RASCIAnsatz_2, C::AbstractArray{T}) where T
+    ###{{{
+    #S2 = (S+S- + S-S+)1/2 + Sz.Sz
+    #   = 1/2 sum_ij(ai'bi bj'ai + bj'aj ai'bi) + Sz.Sz
+    #   do swaps and you can end up adding the two together to get rid
+    #   of the 1/2 factor so 
+    #   = (-1) sum_ij(ai'aj|alpha>bj'bi|beta> + Sz.Sz
+    ###
+
+    nr = size(C,2)
+    v = RASVector(C, P)
+    s2v = initalize_sig(v)
+    lu = fill_lu(v, P.ras_spaces)
+    v = v.data
+
+    for (block1, vec) in v
+        as = get_configs(P.ras_spaces, block1.focka)
+        bs = get_configs(P.ras_spaces, block1.fockb)
+        for Ia in 1:length(as)
+            config_a = as[Ia]
+            for Ib in 1:length(bs)
+                config_b = bs[Ib]
+                #Sz.Sz (α) 
+                count_a = (P.na-1)*P.na
+                for i in 1:count_a
+                    s2v[block1][Ia,Ib,:] .+= 0.25.*vec[Ia, Ib, :]
+                end
+
+                #Sz.Sz (β)
+                count_b = (P.nb-1)*P.nb
+                for i in 1:count_b
+                    s2v[block1][Ia,Ib,:] .+= 0.25.*vec[Ia, Ib, :]
+                end
+
+                #Sz.Sz (α,β)
+                for ai in config_a
+                    for bj in config_b
+                        if ai != bj
+                            s2v[block1][Ia,Ib,:] .-= 0.5.*vec[Ia, Ib, :]
+                        end
+                    end
+                end
+
+                ##Sp.Sm + Sm.Sp Diagonal Part
+                for ai in config_a
+                    if ai in config_b
+                    else
+                        s2v[block1][Ia,Ib,:] .+= 0.75.*vec[Ia, Ib, :]
+                    end
+                end
+
+                for bi in config_b
+                    if bi in config_a
+                    else
+                        s2v[block1][Ia,Ib,:] .+= 0.75.*vec[Ia, Ib, :]
+                    end
+                end
+
+                #(Sp.Sm + Sm.Sp)1/2 Off Diagonal Part
+                for ai in config_a
+                    for bj in config_b
+                        if ai ∉ config_b
+                            if bj ∉ config_a
+                                #Sp.Sm + Sm.Sp
+                                delta_a = get_fock_delta(ai, bj, P.ras_spaces)
+                                delta_b = get_fock_delta(bj, ai, P.ras_spaces)
+                                block2 = RasBlock(block1.focka.+delta_a, block1.fockb.+delta_b)
+                                haskey(v, block2) || continue
+                                La = lu[block1.focka][ai,bj,Ia]
+                                La != 0 || continue
+                                sign_a = sign(La)
+                                La = abs(La)
+                                Lb = lu[block1.fockb][bj,ai,Ib]
+                                Lb != 0 || continue
+                                sign_b = sign(Lb)
+                                Lb = abs(Lb)
+                                s2v[block1][Ia,Ib,:] .-= sign_a*sign_b*v[block2][La, Lb, :]
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    starti = 1
+    S2 = zeros(Float64, P.dim, nr)
+    for (block, vec) in s2v
+        tmp = reshape(vec, (size(vec,1)*size(vec,2), nr))
+        S2[starti:starti+(size(vec,1)*size(vec,2))-1, :] .= tmp
+        starti += (size(vec,1)*size(vec,2))
+    end
+    return S2#=}}}=#
 end
 
 function compute_1rdm(prob::RASCIAnsatz_2, C::Vector)
+    v = RASVector(C, prob)#={{{=#
+    lu = fill_lu(v, prob.ras_spaces)
+    single_excit = make_single_excit(prob.ras_spaces)
     rdm1a = zeros(prob.no, prob.no)
     rdm1b = zeros(prob.no, prob.no)
-    return rdm1a, rdm1b
+
+    for (block1, vec) in v.data
+        for ((k_range, l_range), delta1) in single_excit
+            block2 = RasBlock(block1.focka.+delta1, block1.fockb)
+            haskey(v.data,block2) || continue
+            for Ia in 1:size(vec,1)
+                for l in l_range, k in k_range  
+                    Ja = lu[block1.focka][k,l,Ia]
+                    Ja != 0 || continue
+                    sign_kl = sign(Ja)
+                    Ja = abs(Ja)
+                    rdm1a[k,l] += sign_kl*dot(v.data[block2][Ja,:], v.data[block1][Ia,:])
+                end
+            end
+        end
+    end
+    
+    for (block1, vec) in v.data
+        for ((k_range, l_range), delta1) in single_excit
+            block2 = RasBlock(block1.focka, block1.fockb.+delta1)
+            haskey(v.data,block2) || continue
+            for Ib in 1:size(vec,2)
+                for l in l_range, k in k_range  
+                    Jb = lu[block1.fockb][k,l,Ib]
+                    Jb != 0 || continue
+                    sign_kl = sign(Jb)
+                    Jb = abs(Jb)
+                    rdm1b[k,l] += sign_kl*dot(v.data[block2][:,Jb], v.data[block1][:,Ib])
+                end
+            end
+        end
+    end
+
+    return rdm1a, rdm1b#=}}}=#
 end
 
 function compute_1rdm_2rdm(prob::RASCIAnsatz_2, C::Vector)
-    rdm1a, rdm1b = comput_1rdm(prob, C)
+    v = RASVector(C, prob)#={{{=#
+    lu = fill_lu(v, prob.ras_spaces)
+    single_excit = make_single_excit(prob.ras_spaces)
+    rdm1a, rdm1b = compute_1rdm(prob, C)
     rdm2aa = zeros(prob.no, prob.no, prob.no, prob.no)
     rdm2bb = zeros(prob.no, prob.no, prob.no, prob.no)
     rdm2ab = zeros(prob.no, prob.no, prob.no, prob.no)
-    return rdm1a, rdm1b, rdm2aa, rdm2bb, rdm2ab
+    
+    ras1 = range(start=1, stop=prob.ras_spaces[1])
+    ras2 = range(start=prob.ras_spaces[1]+1,stop=prob.ras_spaces[1]+prob.ras_spaces[2])
+    ras3 = range(start=prob.ras_spaces[1]+prob.ras_spaces[2]+1, stop=prob.ras_spaces[1]+prob.ras_spaces[2]+prob.ras_spaces[3])
+    
+    aconfig = zeros(Int, prob.na)
+    aconfig_a = zeros(Int, prob.na-1)
+    #alpha alpha p'q'rs
+    for (block1, vec) in v.data
+        det1 = SubspaceDeterminantString(prob.ras_spaces[1], block1.focka[1])
+        for i in 1:det1.max
+            det2 = SubspaceDeterminantString(prob.ras_spaces[2], block1.focka[2])
+            for j in 1:det2.max
+                det3 = SubspaceDeterminantString(prob.ras_spaces[3], block1.focka[3])
+                for n in 1:det3.max
+                    idx = calc_full_ras_index(det1, det2, det3)
+                    aconfig = [det1.config;det2.config.+det1.no;det3.config.+det1.no.+det2.no]
+                    
+                    for s in aconfig
+                        tmp = deepcopy(aconfig)
+                        sgn_a, aconfig_a = apply_annihilation(tmp, s)
+                        #if length(aconfig_a) != prob.na -1
+                        #    error("a")
+                        #end
+
+                        for r in aconfig_a
+                            tmp2 = deepcopy(aconfig_a)
+                            sgn_aa, aconfig_aa = apply_annihilation(tmp2, r)
+                            #if length(aconfig_aa) != prob.na -2
+                            #    error("aa")
+                            #end
+                            #sgn_aa != 0 || continue
+                            for q in 1:prob.no
+                                tmp3 = deepcopy(aconfig_aa)
+                                sgn_c, config_c = apply_creation(tmp3, q)
+                                sgn_c != 0 || continue
+                                #if length(config_c) != prob.na -1
+                                #    error("c")
+                                #end
+                                for p in 1:prob.no
+                                    p != q || continue
+                                    tmp4 = deepcopy(config_c)
+                                    d1_c, d2_c, d3_c = breakup_config(tmp4, ras1, ras2, ras3)
+                                    sgn_cc, idx_new = apply_creation!(d1_c, d2_c, d3_c, ras1, ras2, ras3, p)
+                                    sgn_cc != 0 || continue
+                                    delta = find_fock_delta_ccaa(s,r,q,p,ras1, ras2, ras3)
+                                    new_block = RasBlock(block1.focka.+delta, block1.fockb)
+                                    haskey(v.data, new_block) || continue
+                                    rdm2aa[p,s,q,r] += sgn_a*sgn_aa*sgn_c*sgn_cc*dot(v.data[new_block][idx_new,:], v.data[block1][idx,:])
+                                end
+                            end
+                        end
+                    end
+                    incr!(det3)
+                end
+                incr!(det2)
+            end
+            incr!(det1)
+        end
+    end
+    
+    #beta beta p'q'rs
+    bconfig = zeros(Int, prob.nb)
+    bconfig_a = zeros(Int, prob.nb-1)
+    for (block1, vec) in v.data
+        det1 = SubspaceDeterminantString(prob.ras_spaces[1], block1.fockb[1])
+        for i in 1:det1.max
+            det2 = SubspaceDeterminantString(prob.ras_spaces[2], block1.fockb[2])
+            for j in 1:det2.max
+                det3 = SubspaceDeterminantString(prob.ras_spaces[3], block1.fockb[3])
+                for n in 1:det3.max
+                    idx = calc_full_ras_index(det1, det2, det3)
+                    bconfig = [det1.config;det2.config.+det1.no;det3.config.+det1.no.+det2.no]
+                    
+                    for s in bconfig
+                        tmp = deepcopy(bconfig)
+                        sgn_a, bconfig_a = apply_annihilation(tmp, s)
+                        #if length(aconfig_a) != prob.na -1
+                        #    error("a")
+                        #end
+
+                        for r in bconfig_a
+                            tmp2 = deepcopy(bconfig_a)
+                            sgn_aa, bconfig_aa = apply_annihilation(tmp2, r)
+                            #if length(aconfig_aa) != prob.na -2
+                            #    error("aa")
+                            #end
+                            #sgn_aa != 0 || continue
+                            for q in 1:prob.no
+                                tmp3 = deepcopy(bconfig_aa)
+                                sgn_c, bconfig_c = apply_creation(tmp3, q)
+                                sgn_c != 0 || continue
+                                #if length(config_c) != prob.na -1
+                                #    error("c")
+                                #end
+                                for p in 1:prob.no
+                                    p != q || continue
+                                    tmp4 = deepcopy(bconfig_c)
+                                    d1_c, d2_c, d3_c = breakup_config(tmp4, ras1, ras2, ras3)
+                                    sgn_cc, idx_new = apply_creation!(d1_c, d2_c, d3_c, ras1, ras2, ras3, p)
+                                    sgn_cc != 0 || continue
+                                    delta = find_fock_delta_ccaa(s,r,q,p,ras1, ras2, ras3)
+                                    new_block = RasBlock(block1.focka, block1.fockb.+delta)
+                                    haskey(v.data, new_block) || continue
+                                    rdm2bb[p,s,q,r] += sgn_a*sgn_aa*sgn_c*sgn_cc*dot(v.data[new_block][:,idx_new], v.data[block1][:,idx])
+                                end
+                            end
+                        end
+                    end
+                    incr!(det3)
+                end
+                incr!(det2)
+            end
+            incr!(det1)
+        end
+    end
+
+    #alpha beta
+    for (block1, vec) in v.data
+        for ((k_range, l_range), delta_a) in single_excit
+            for ((i_range, j_range), delta_b) in single_excit
+                block2 = RasBlock(block1.focka.+delta_a, block1.fockb.+delta_b)
+                haskey(v.data, block2) || continue
+                for aconfig in 1:size(vec, 1)
+                    for l in l_range, k in k_range
+                        Ja = lu[block1.focka][k, l, aconfig]
+                        Ja != 0 || continue     
+                        sign_a = sign(Ja)
+                        Ja = abs(Ja)
+                        for bconfig in 1:size(vec, 2)
+                            for j in j_range, i in i_range
+                                Jb = lu[block1.fockb][i, j, bconfig]
+                                Jb != 0 || continue     
+                                sign_b = sign(Jb)
+                                Jb = abs(Jb)
+                                sgn = sign_a*sign_b
+                                rdm2ab[l,k,j,i] += sgn*v.data[block2][Ja,Jb]*v.data[block1][aconfig, bconfig]
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return rdm1a, rdm1b, rdm2aa, rdm2bb, rdm2ab#=}}}=#
 end
 
 
