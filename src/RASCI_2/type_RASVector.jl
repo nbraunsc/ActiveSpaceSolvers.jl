@@ -1160,10 +1160,13 @@ function apply_S2_matrix(P::RASCIAnsatz_2, C::AbstractArray{T}) where T
     for (block1, vec) in v
         as = get_configs(P.ras_spaces, block1.focka)
         bs = get_configs(P.ras_spaces, block1.fockb)
-        for Ia in 1:length(as)
-            config_a = as[Ia]
-            for Ib in 1:length(bs)
-                config_b = bs[Ib]
+        for A in as
+            Ia = A[1]
+            config_a = A[2]
+            for B in bs
+                Ib = B[1]
+                config_b = B[2]
+                
                 #Sz.Sz (α) 
                 count_a = (P.na-1)*P.na
                 for i in 1:count_a
