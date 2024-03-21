@@ -244,6 +244,7 @@ function apply_annihilation!(det1::Vector{Int}, det2::Vector{Int}, det3::Vector{
         if spot % 2 != 1
             sign_a = -1
         end
+        println(det1, det2, det3)
 
     elseif orb_a in det2
         spot =  findfirst(det2.==orb_a)
@@ -395,51 +396,64 @@ function fill_lu(v::RASVector, ras_spaces::SVector{3, Int})
 
     #general lu table
     for (fock1, lu_data) in lu
-        for ((k_range, l_range), delta) in single_excit
-            fock2 = fock1.+delta
-            haskey(lu, fock2) || continue
-            
-            #conf_scr1_2 = zeros(Int, fock2[1])
-            #conf_scr2_2 = zeros(Int, fock2[2])
-            #conf_scr3_2 = zeros(Int, fock2[3])
+        #for ((k_range, l_range), delta) in single_excit
+        #fock2 = fock1.+delta
+        #haskey(lu, fock2) || continue
 
-            det1 = SubspaceDeterminantString(ras_spaces[1], fock1[1])
-            for i in 1:det1.max
-                det2 = SubspaceDeterminantString(ras_spaces[2], fock1[2])
-                for j in 1:det2.max
-                    det3 = SubspaceDeterminantString(ras_spaces[3], fock1[3])
-                    for n in 1:det3.max
-                        idx = calc_full_ras_index(det1, det2, det3)
-                        #println(det1.config, det2.config.+det1.no, det3.config.+det1.no.+det2.no)
-                        #display(idx)
+        #conf_scr1_2 = zeros(Int, fock2[1])
+        #conf_scr2_2 = zeros(Int, fock2[2])
+        #conf_scr3_2 = zeros(Int, fock2[3])
 
-                        for k in k_range
-                            tmp_det1 = deepcopy(det1.config)
-                            tmp_det2 = deepcopy(det2.config)
-                            tmp_det3 = deepcopy(det3.config)
+        det1 = SubspaceDeterminantString(ras_spaces[1], fock1[1])
+        for i in 1:det1.max
+            det2 = SubspaceDeterminantString(ras_spaces[2], fock1[2])
+            for j in 1:det2.max
+                det3 = SubspaceDeterminantString(ras_spaces[3], fock1[3])
+                for n in 1:det3.max
+                    idx = calc_full_ras_index(det1, det2, det3)
+                    config = [det1.config;det2.config.+det1.no;det3.config.+det1.no.+det2.no]
 
-                            sgn_a, det1_config, det2_config, det3_config = apply_annihilation!(tmp_det1, tmp_det2.+det1.no, tmp_det3.+det1.no.+det2.no, k)
-                            
-                            sgn_a != 0 || continue
-                            for l in l_range
-                                if l in det1_config || l in det2_config || l in det3_config
-                                    continue
-                                else
-                                    sgn_c, idx_new = apply_creation!(det1_config, det2_config, det3_config, ras1, ras2, ras3, l)
-                                    sgn_c != 0 || continue
-                                    lu[fock1][k, l, idx] = sgn_a*sgn_c*idx_new
-                                end
+                    for k in config
+                        #tmp_det1 = deepcopy(det1.config)
+                        #tmp_det2 = deepcopy(det2.config)
+                        #tmp_det3 = deepcopy(det3.config)
+                        #sgn_a, det1_config, det2_config, det3_config = apply_annihilation!(tmp_det1, tmp_det2.+det1.no, tmp_det3.+det1.no.+det2.no, k)
+                        tmp = deepcopy(config)
+                        sgn_a, deta = apply_annihilation(tmp, k)
+
+                        for l in 1:sum(ras_spaces)
+                            #tmp_c1 = deepcopy(det1_config)
+                            #tmp_c2 = deepcopy(det2_config)
+                            #tmp_c3 = deepcopy(det3_config)
+                            tmp2 = deepcopy(deta)
+                            if l in tmp2
+                                continue
                             end
+
+                            sgn_c, detc = apply_creation(tmp2, l)
+                            #sgn_c != 0 || continue
+                            delta_kl = get_fock_delta(k, l, ras_spaces)
+                            haskey(lu, fock1.+delta_kl) || continue
+                            
+                            d1, d2, d3 = breakup_config(detc, ras1, ras2, ras3)
+
+                            det1_c = SubspaceDeterminantString(length(ras1), length(d1), d1)
+                            det2_c = SubspaceDeterminantString(length(ras2), length(d2), d2.-length(ras1))
+                            det3_c = SubspaceDeterminantString(length(ras3), length(d3), d3.-length(ras1).-length(ras2))
+                            idx_new = calc_full_ras_index(det1_c, det2_c, det3_c)
+                            
+                            #sgn_c, idx_new = apply_creation!(tmp_c1, tmp_c2, tmp_c3, ras1, ras2, ras3, l)
+                            #sgn_c, idx_new = apply_creation!(det1_config, det2_config, det3_config, ras1, ras2, ras3, l)
+                            lu[fock1][k, l, idx] = sgn_a*sgn_c*idx_new
                         end
-                        incr!(det3)
                     end
-                    incr!(det2)
+                    incr!(det3)
                 end
-                incr!(det1)
+                incr!(det2)
             end
+            incr!(det1)
         end
     end
-
     return lu
 end#=}}}=#
 
@@ -453,7 +467,7 @@ function get_configs(ras_spaces, fock)
             for n in 1:det3.max
                 idx = calc_full_ras_index(det1, det2, det3)
                 config = [det1.config;det2.config.+det1.no;det3.config.+det1.no.+det2.no]
-                push!(tmp, config)
+                push!(tmp, (idx,config))
                 incr!(det3)
             end
             incr!(det2)
@@ -1038,19 +1052,17 @@ function compute_S2_expval(C::Matrix, P::RASCIAnsatz_2)
     s2 = zeros(nr)
     v = RASVector(C, P)
     lu = fill_lu(v, P.ras_spaces)
-    v = v.data
     
-    ras1 = range(start=1, stop=P.ras_spaces[1])
-    ras2 = range(start=P.ras_spaces[1]+1,stop=P.ras_spaces[1]+P.ras_spaces[2])
-    ras3 = range(start=P.ras_spaces[1]+P.ras_spaces[2]+1, stop=P.ras_spaces[1]+P.ras_spaces[2]+P.ras_spaces[3])
-
-    for (block1, vec) in v
+    for (block1, vec) in v.data
         as = get_configs(P.ras_spaces, block1.focka)
         bs = get_configs(P.ras_spaces, block1.fockb)
-        for Ia in 1:length(as)
-            config_a = as[Ia]
-            for Ib in 1:length(bs)
-                config_b = bs[Ib]
+        for A in as
+            Ia = A[1]
+            config_a = A[2]
+            for B in bs
+                Ib = B[1]
+                config_b = B[2]
+                
                 #Sz.Sz (α) 
                 count_a = (P.na-1)*P.na
                 for i in 1:count_a
@@ -1102,16 +1114,13 @@ function compute_S2_expval(C::Matrix, P::RASCIAnsatz_2)
                     for bj in config_b
                         if ai ∉ config_b
                             if bj ∉ config_a
-
-                                #Sp.Sm + Sm.Sp
-                                #delta_a = get_fock_delta(ai, bj, P.ras_spaces)
-                                #delta_b = get_fock_delta(bj, ai, P.ras_spaces)
-
-                                delta_a = find_fock_delta_ca(ai, bj, ras1, ras2, ras3)
-                                delta_b = find_fock_delta_ca(bj, ai, ras1, ras2, ras3)
+                                delta_a = get_fock_delta(ai, bj, P.ras_spaces)
+                                delta_b = get_fock_delta(bj, ai, P.ras_spaces)
 
                                 block2 = RasBlock(block1.focka.+delta_a, block1.fockb.+delta_b)
-                                haskey(v, block2) || continue
+                                haskey(v.data, block2) || continue
+
+                                #Sp.Sm + Sm.Sp
                                 La = lu[block1.focka][ai,bj,Ia]
                                 La != 0 || continue
                                 sign_a = sign(La)
@@ -1121,7 +1130,7 @@ function compute_S2_expval(C::Matrix, P::RASCIAnsatz_2)
                                 sign_b = sign(Lb)
                                 Lb = abs(Lb)
                                 for r in 1:nr
-                                    s2[r] -= sign_a*sign_b*vec[Ia, Ib,r]*v[block2][La, Lb, r]
+                                    s2[r] -= sign_a*sign_b*vec[Ia, Ib,r]*v.data[block2][La, Lb, r]
                                 end
                             end
                         end
@@ -1323,7 +1332,7 @@ function compute_1rdm_2rdm(prob::RASCIAnsatz_2, C::Vector)
                                     d1_c, d2_c, d3_c = breakup_config(tmp4, ras1, ras2, ras3)
                                     sgn_cc, idx_new = apply_creation!(d1_c, d2_c, d3_c, ras1, ras2, ras3, p)
                                     sgn_cc != 0 || continue
-                                    delta = find_fock_delta_ccaa(s,r,q,p,ras1, ras2, ras3)
+delta = find_fock_delta_ccaa(s,r,q,p,ras1, ras2, ras3)
                                     new_block = RasBlock(block1.focka.+delta, block1.fockb)
                                     haskey(v.data, new_block) || continue
                                     rdm2aa[p,s,q,r] += sgn_a*sgn_aa*sgn_c*sgn_cc*dot(v.data[new_block][idx_new,:], v.data[block1][idx,:])
