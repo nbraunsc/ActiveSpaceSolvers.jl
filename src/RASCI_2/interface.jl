@@ -208,55 +208,41 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz_2)
     # = c(IJ,s)c(KL,t) <I|a|K><J|b'|L> (-1) (-1)^ket_a.ne
     
     nroots = size(v,2)
+    v2 = RASVector(v, ansatz)
+    w = initalize_sig(v2)
     
-    bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.ras_spaces,  max_h=ansatz.max_h, max_p=ansatz.max_p)
-    
-    cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra_ansatz, ansatz, spin="alpha", type="a")
-    cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra_ansatz, ansatz, spin="beta", type="c")
-    spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(ansatz, cats_a, cats_b)
-    spin_pairs_bra = ActiveSpaceSolvers.RASCI.make_spin_pairs(bra_ansatz, cats_a_bra, cats_b_bra)
-    
-    v2 = Dict{Int, Array{Float64, 3}}()
-    start = 1
-    for m in 1:length(spin_pairs)
-        tmp = v[start:start+spin_pairs[m].dim-1, :]
-        v2[m] = reshape(tmp, (length(cats_a[spin_pairs[m].pair[1]].idxs), length(cats_b[spin_pairs[m].pair[2]].idxs), nroots))
-        start += spin_pairs[m].dim
-    end
-    
-    w = Dict{Int, Array{Float64, 3}}()
-    for m in 1:length(spin_pairs_bra)
-        w[m] = zeros(length(cats_a_bra[spin_pairs_bra[m].pair[1]].idxs), length(cats_b_bra[spin_pairs_bra[m].pair[2]].idxs), nroots)
-    end
-
     sgnK = -1
     if ansatz.na % 2 != 0 
         sgnK = -sgnK
     end
     
-    for m in 1:length(spin_pairs)
-        cat_Ia = cats_a[spin_pairs[m].pair[1]]
-        cat_Ib = cats_b[spin_pairs[m].pair[2]]
-        for Ib in cats_b[spin_pairs[m].pair[2]].idxs
-            Ib_local = Ib-cat_Ib.shift
-            for Ia in cats_a[spin_pairs[m].pair[1]].idxs
-                Ia_local = Ia-cat_Ia.shift
-                for p in 1:ansatz.no
-                    Ja = cat_Ia.lookup[p,Ia_local]
-                    Ja != 0 || continue
-                    Ja_sign = sign(Ja)
-                    Ja = abs(Ja)
-                    cata_Ja = find_cat(Ja, cats_a_bra)
-                    Jb = cat_Ib.lookup[p,Ib_local]
-                    Jb != 0 || continue
-                    Jb_sign = sign(Jb)
-                    Jb = abs(Jb)
-                    catb_Jb = find_cat(Jb, cats_b_bra)
-                    n = find_spin_pair(spin_pairs_bra, (cata_Ja.idx, catb_Jb.idx))
-                    n != 0 || continue
-                    Ja_local = Ja-cata_Ja.shift
-                    Jb_local = Jb-catb_Jb.shift
-                    w[n][Ja_local, Jb_local, :] .+= sgnK*Ja_sign*Jb_sign*v2[m][Ia_local, Ib_local, :]
+    ras1 = range(start=1, stop=ansatz.ras_spaces[1])
+    ras2 = range(start=ansatz.ras_spaces[1]+1,stop=ansatz.ras_spaces[1]+ansatz.ras_spaces[2])
+    ras3 = range(start=ansatz.ras_spaces[1]+ansatz.ras_spaces[2]+1, stop=ansatz.ras_spaces[1]+ansatz.ras_spaces[2]+ansatz.ras_spaces[3])
+    
+    for (block1, vec) in v2.data
+        as = get_configs(ansatz.ras_spaces, block1.focka)
+        bs = get_configs(ansatz.ras_spaces, block1.fockb)
+        for Ib in 1:length(bs)
+            config_b = bs[Ib]
+            for Ia in 1:length(as)
+                config_a = as[Ia]
+                for p in config_a
+                    delta_a = find_fock_delta_a(p,ras1, ras2, ras3)
+                    delta_b = find_fock_delta_c(p,ras1, ras2, ras3)
+                    new_block = RasBlock(block1.focka.+delta_a, block1.fockb.+delta_b)
+                    haskey(v2.data, new_block) || continue
+                    
+                    tmp_a = deepcopy(config_a)
+                    tmp_b = deepcopy(config_b)
+                    sgn_a, config_ap = apply_annihilation(tmp_a, p)
+                    d1_a, d2_a, d3_a = breakup_config(config_ap, ras1, ras2, ras3)
+                    #this calc full ras index doesnt actually exist yet
+                    Ja = calc_full_ras_index(d1_a, d2_a, d3_a, ras1, ras2, ras3)
+                    sgn_c, config_c = apply_creation(tmp_b, p)
+                    d1_c, d2_c, d3_c = breakup_config(config_c, ras1, ras2, ras3)
+                    Jb = calc_full_ras_index(d1_c, d2_c, d3_c, ras1, ras2, ras3)
+                    w[new_block][Ja, Jb, :] .+= sgnK*sgn_a*sgn_c*v2.data[block1][Ia, Ib, :]
                 end
             end
         end
@@ -264,10 +250,10 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz_2)
     
     starti = 1
     w2 = zeros(Float64, bra_ansatz.dim, nroots)
-    for m in 1:length(spin_pairs_bra)
-        tmp = reshape(w[m], (size(w[m],1)*size(w[m],2), nroots))
-        w2[starti:starti+spin_pairs_bra[m].dim-1, :] .= tmp
-        starti += spin_pairs_bra[m].dim
+    for (block, vec) in v2.data
+        tmp = reshape(vec, (size(vec,1)*size(vec,2), nroots))
+        w2[starti:starti+(size(vec,1)*size(vec,2))-1, :] .= tmp
+        starti += (size(vec,1)*size(vec,2))
     end
     
     #only keep the states that aren't zero (that weren't killed by S-)
@@ -279,7 +265,7 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz_2)
         end
     end
 
-    return wout, bra_ansatz#=}}}=#
+    return wout#=}}}=#
 end
 
 """

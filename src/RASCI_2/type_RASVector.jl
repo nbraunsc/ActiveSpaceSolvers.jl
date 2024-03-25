@@ -392,10 +392,10 @@ function fill_lu(v::RASVector, ras_spaces::SVector{3, Int})
     ras2 = range(start=ras_spaces[1]+1,stop=ras_spaces[1]+ras_spaces[2])
     ras3 = range(start=ras_spaces[1]+ras_spaces[2]+1, stop=ras_spaces[1]+ras_spaces[2]+ras_spaces[3])
     norbs = sum(ras_spaces)
-    lu = initalize_lu(v, norbs)
-
+    lookup = initalize_lu(v, norbs)
+    
     #general lu table
-    for (fock1, lu_data) in lu
+    for (fock1, lu_data) in lookup
         #for ((k_range, l_range), delta) in single_excit
         #fock2 = fock1.+delta
         #haskey(lu, fock2) || continue
@@ -404,13 +404,15 @@ function fill_lu(v::RASVector, ras_spaces::SVector{3, Int})
         #conf_scr2_2 = zeros(Int, fock2[2])
         #conf_scr3_2 = zeros(Int, fock2[3])
 
-        det1 = SubspaceDeterminantString(ras_spaces[1], fock1[1])
-        for i in 1:det1.max
+        idx = 0
+        det3 = SubspaceDeterminantString(ras_spaces[3], fock1[3])
+        for n in 1:det3.max
             det2 = SubspaceDeterminantString(ras_spaces[2], fock1[2])
             for j in 1:det2.max
-                det3 = SubspaceDeterminantString(ras_spaces[3], fock1[3])
-                for n in 1:det3.max
-                    idx = calc_full_ras_index(det1, det2, det3)
+                det1 = SubspaceDeterminantString(ras_spaces[1], fock1[1])
+                for i in 1:det1.max
+                    #idx = calc_full_ras_index(det1, det2, det3)
+                    idx += 1
                     config = [det1.config;det2.config.+det1.no;det3.config.+det1.no.+det2.no]
 
                     for k in config
@@ -433,7 +435,7 @@ function fill_lu(v::RASVector, ras_spaces::SVector{3, Int})
                             sgn_c, detc = apply_creation(tmp2, l)
                             #sgn_c != 0 || continue
                             delta_kl = get_fock_delta(k, l, ras_spaces)
-                            haskey(lu, fock1.+delta_kl) || continue
+                            haskey(lookup, fock1.+delta_kl) || continue
                             
                             d1, d2, d3 = breakup_config(detc, ras1, ras2, ras3)
 
@@ -444,35 +446,36 @@ function fill_lu(v::RASVector, ras_spaces::SVector{3, Int})
                             
                             #sgn_c, idx_new = apply_creation!(tmp_c1, tmp_c2, tmp_c3, ras1, ras2, ras3, l)
                             #sgn_c, idx_new = apply_creation!(det1_config, det2_config, det3_config, ras1, ras2, ras3, l)
-                            lu[fock1][k, l, idx] = sgn_a*sgn_c*idx_new
+                            lookup[fock1][k, l, idx] = sgn_a*sgn_c*idx_new
                         end
                     end
-                    incr!(det3)
+                    incr!(det1)
                 end
                 incr!(det2)
             end
-            incr!(det1)
+            incr!(det3)
         end
     end
-    return lu
+    return lookup
 end#=}}}=#
 
 function get_configs(ras_spaces, fock)
     tmp = []#={{{=#
-    det1 = SubspaceDeterminantString(ras_spaces[1], fock[1])
-    for i in 1:det1.max
+    det3 = SubspaceDeterminantString(ras_spaces[3], fock[3])
+    for n in 1:det3.max
         det2 = SubspaceDeterminantString(ras_spaces[2], fock[2])
         for j in 1:det2.max
-            det3 = SubspaceDeterminantString(ras_spaces[3], fock[3])
-            for n in 1:det3.max
-                idx = calc_full_ras_index(det1, det2, det3)
+            det1 = SubspaceDeterminantString(ras_spaces[1], fock[1])
+            for i in 1:det1.max
+                #idx = calc_full_ras_index(det1, det2, det3)
                 config = [det1.config;det2.config.+det1.no;det3.config.+det1.no.+det2.no]
-                push!(tmp, (idx,config))
-                incr!(det3)
+                #push!(tmp, (idx,config))
+                push!(tmp, config)
+                incr!(det1)
             end
             incr!(det2)
         end
-        incr!(det1)
+        incr!(det3)
     end
     return tmp#=}}}=#
 end
@@ -1056,12 +1059,10 @@ function compute_S2_expval(C::Matrix, P::RASCIAnsatz_2)
     for (block1, vec) in v.data
         as = get_configs(P.ras_spaces, block1.focka)
         bs = get_configs(P.ras_spaces, block1.fockb)
-        for A in as
-            Ia = A[1]
-            config_a = A[2]
-            for B in bs
-                Ib = B[1]
-                config_b = B[2]
+        for Ia in 1:length(as)
+            config_a = as[Ia]
+            for Ib in 1:length(bs)
+                config_b = bs[Ib]
                 
                 #Sz.Sz (α) 
                 count_a = (P.na-1)*P.na
@@ -1160,12 +1161,10 @@ function apply_S2_matrix(P::RASCIAnsatz_2, C::AbstractArray{T}) where T
     for (block1, vec) in v
         as = get_configs(P.ras_spaces, block1.focka)
         bs = get_configs(P.ras_spaces, block1.fockb)
-        for A in as
-            Ia = A[1]
-            config_a = A[2]
-            for B in bs
-                Ib = B[1]
-                config_b = B[2]
+        for Ia in 1:length(as)
+            config_a = as[Ia]
+            for Ib in 1:length(bs)
+                config_b = bs[Ib]
                 
                 #Sz.Sz (α) 
                 count_a = (P.na-1)*P.na
@@ -1299,13 +1298,15 @@ function compute_1rdm_2rdm(prob::RASCIAnsatz_2, C::Vector)
     aconfig_a = zeros(Int, prob.na-1)
     #alpha alpha p'q'rs
     for (block1, vec) in v.data
-        det1 = SubspaceDeterminantString(prob.ras_spaces[1], block1.focka[1])
-        for i in 1:det1.max
+        idx = 0
+        det3 = SubspaceDeterminantString(prob.ras_spaces[3], block1.focka[3])
+        for n in 1:det3.max
             det2 = SubspaceDeterminantString(prob.ras_spaces[2], block1.focka[2])
             for j in 1:det2.max
-                det3 = SubspaceDeterminantString(prob.ras_spaces[3], block1.focka[3])
-                for n in 1:det3.max
-                    idx = calc_full_ras_index(det1, det2, det3)
+                det1 = SubspaceDeterminantString(prob.ras_spaces[1], block1.focka[1])
+                for i in 1:det1.max
+                    #idx = calc_full_ras_index(det1, det2, det3)
+                    idx += 1
                     aconfig = [det1.config;det2.config.+det1.no;det3.config.+det1.no.+det2.no]
                     
                     for s in aconfig
@@ -1335,7 +1336,7 @@ function compute_1rdm_2rdm(prob::RASCIAnsatz_2, C::Vector)
                                     d1_c, d2_c, d3_c = breakup_config(tmp4, ras1, ras2, ras3)
                                     sgn_cc, idx_new = apply_creation!(d1_c, d2_c, d3_c, ras1, ras2, ras3, p)
                                     sgn_cc != 0 || continue
-delta = find_fock_delta_ccaa(s,r,q,p,ras1, ras2, ras3)
+                                    delta = find_fock_delta_ccaa(s,r,q,p,ras1, ras2, ras3)
                                     new_block = RasBlock(block1.focka.+delta, block1.fockb)
                                     haskey(v.data, new_block) || continue
                                     rdm2aa[p,s,q,r] += sgn_a*sgn_aa*sgn_c*sgn_cc*dot(v.data[new_block][idx_new,:], v.data[block1][idx,:])
@@ -1343,11 +1344,11 @@ delta = find_fock_delta_ccaa(s,r,q,p,ras1, ras2, ras3)
                             end
                         end
                     end
-                    incr!(det3)
+                    incr!(det1)
                 end
                 incr!(det2)
             end
-            incr!(det1)
+            incr!(det3)
         end
     end
     
@@ -1355,13 +1356,15 @@ delta = find_fock_delta_ccaa(s,r,q,p,ras1, ras2, ras3)
     bconfig = zeros(Int, prob.nb)
     bconfig_a = zeros(Int, prob.nb-1)
     for (block1, vec) in v.data
-        det1 = SubspaceDeterminantString(prob.ras_spaces[1], block1.fockb[1])
-        for i in 1:det1.max
+        idx = 0
+        det3 = SubspaceDeterminantString(prob.ras_spaces[3], block1.fockb[3])
+        for n in 1:det3.max
             det2 = SubspaceDeterminantString(prob.ras_spaces[2], block1.fockb[2])
             for j in 1:det2.max
-                det3 = SubspaceDeterminantString(prob.ras_spaces[3], block1.fockb[3])
-                for n in 1:det3.max
-                    idx = calc_full_ras_index(det1, det2, det3)
+                det1 = SubspaceDeterminantString(prob.ras_spaces[1], block1.fockb[1])
+                for i in 1:det1.max
+                    idx += 1
+                    #idx = calc_full_ras_index(det1, det2, det3)
                     bconfig = [det1.config;det2.config.+det1.no;det3.config.+det1.no.+det2.no]
                     
                     for s in bconfig
@@ -1399,11 +1402,11 @@ delta = find_fock_delta_ccaa(s,r,q,p,ras1, ras2, ras3)
                             end
                         end
                     end
-                    incr!(det3)
+                    incr!(det1)
                 end
                 incr!(det2)
             end
-            incr!(det1)
+            incr!(det3)
         end
     end
 
