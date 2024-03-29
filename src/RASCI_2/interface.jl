@@ -108,7 +108,7 @@ Get LinearMap with takes a vector and returns action of H on that vector
 - ints: `InCoreInts` object
 - prb:  `FCIAnsatz` object
 """
-function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
+function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where T
 
     iters = 0
     function mymatvec(v)
@@ -129,9 +129,9 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
             nr = size(v)[2]
         end
         
-        sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
-        sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
-        sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
+        @time sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
+        @time sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
+        @time sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
         
         sig = sigma1 + sigma2 + sigma3
         

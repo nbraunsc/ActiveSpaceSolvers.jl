@@ -200,14 +200,23 @@ end
 
 function apply_annihilation(det::Vector{Int}, orb_a)
     sign_a =1#={{{=#
-    spot = findfirst(det.==orb_a)
-    splice!(det, spot)
+    if orb_a in det
+        spot = findfirst(det.==orb_a)
+        splice!(det, spot)
 
-    if spot % 2 != 1
-        sign_a = -1
+        if spot % 2 != 1
+            sign_a = -1
+        end
+        if length(det) == 1
+            return sign_a, [det]
+        else
+            return sign_a, det
+        end
+    else
+        return 0, 0
     end
-    return sign_a, det
 end#=}}}=#
+
 function apply_creation(det::Vector{Int}, orb_c)
     insert_here = 1#={{{=#
     sign_c = 1
@@ -299,7 +308,7 @@ function apply_creation!(det1::Vector{Int}, det2::Vector{Int}, det3::Vector{Int}
         det2_c = SubspaceDeterminantString(length(ras2), length(det2), det2.-length(ras1))
         det3_c = SubspaceDeterminantString(length(ras3), length(det3), det3.-length(ras1).-length(ras2))
 
-        idx = calc_full_ras_index(det1_c, det2_c, det3_c)
+    idx = calc_full_ras_index(det1_c, det2_c, det3_c)
         return sign_c, idx
 
     elseif orb_c in ras2
@@ -640,10 +649,108 @@ function make_single_excit(ras_spaces::SVector{3, Int})
     return single_exc#=}}}=#
 end
 
+function make_excitation_classes_ccaa(ras_spaces::SVector{3, Int})
+
+    i_orbs = range(start=1, stop=ras_spaces[1])
+    ii_orbs = range(start=ras_spaces[1]+1,stop=ras_spaces[1]+ras_spaces[2])
+    iii_orbs = range(start=ras_spaces[1]+ras_spaces[2]+1, stop=ras_spaces[1]+ras_spaces[2]+ras_spaces[3])
+
+    ranges = [i_orbs, ii_orbs, iii_orbs]
+    
+    double_exc = OrderedDict{Tuple{Vector{Int}, Vector{Int}, Vector{Int}, Vector{Int}}, Tuple{Int, Int, Int}}()
+    for (pidx, p) in enumerate(ranges)
+        for (qidx, q) in enumerate(ranges)
+            for (ridx, r) in enumerate(ranges)
+                for (sidx, s) in enumerate(ranges)
+                    tmp = [0,0,0]
+                    tmp[pidx] += 1
+                    tmp[qidx] += 1
+                    tmp[ridx] -= 1
+                    tmp[sidx] -= 1
+                    tmp2 = Tuple(Float64(x) for x in tmp)
+                    double_exc[(p, q, r, s)] = tmp2
+                end
+            end
+        end
+    end
+    return double_exc
+end
+
+function make_excitation_classes_cca(ras_spaces::SVector{3, Int})
+
+    i_orbs = range(start=1, stop=ras_spaces[1])
+    ii_orbs = range(start=ras_spaces[1]+1,stop=ras_spaces[1]+ras_spaces[2])
+    iii_orbs = range(start=ras_spaces[1]+ras_spaces[2]+1, stop=ras_spaces[1]+ras_spaces[2]+ras_spaces[3])
+
+    ranges = [i_orbs, ii_orbs, iii_orbs]
+    
+    double_exc = OrderedDict{Tuple{Vector{Int}, Vector{Int}, Vector{Int}}, Tuple{Int, Int, Int}}()
+    for (pidx, p) in enumerate(ranges)
+        for (qidx, q) in enumerate(ranges)
+            for (ridx, r) in enumerate(ranges)
+                tmp = [0,0,0]
+                tmp[pidx] += 1
+                tmp[qidx] += 1
+                tmp[ridx] -= 1
+                tmp2 = Tuple(Float64(x) for x in tmp)
+                double_exc[(p, q, r)] = tmp2 
+            end
+        end
+    end
+    return double_exc
+end
+
+function make_excitation_classes_cc(ras_spaces::SVector{3, Int})
+
+    i_orbs = range(start=1, stop=ras_spaces[1])
+    ii_orbs = range(start=ras_spaces[1]+1,stop=ras_spaces[1]+ras_spaces[2])
+    iii_orbs = range(start=ras_spaces[1]+ras_spaces[2]+1, stop=ras_spaces[1]+ras_spaces[2]+ras_spaces[3])
+
+    ranges = [i_orbs, ii_orbs, iii_orbs]
+    
+    double_exc = OrderedDict{Tuple{Vector{Int}, Vector{Int}}, Tuple{Int, Int, Int}}()
+    for (pidx, p) in enumerate(ranges)
+        for (qidx, q) in enumerate(ranges)
+            tmp = [0,0,0]
+            tmp[pidx] += 1
+            tmp[qidx] += 1
+            tmp2 = Tuple(Float64(x) for x in tmp)
+            double_exc[(p, q)] = tmp2 
+        end
+    end
+    return double_exc
+end
+
+function make_excitation_classes_c(ras_spaces::SVector{3, Int})
+
+    i_orbs = range(start=1, stop=ras_spaces[1])
+    ii_orbs = range(start=ras_spaces[1]+1,stop=ras_spaces[1]+ras_spaces[2])
+    iii_orbs = range(start=ras_spaces[1]+ras_spaces[2]+1, stop=ras_spaces[1]+ras_spaces[2]+ras_spaces[3])
+
+    ranges = [i_orbs, ii_orbs, iii_orbs]
+    
+    double_exc = OrderedDict{Vector{Int},Tuple{Int, Int, Int}}()
+    for (pidx, p) in enumerate(ranges)
+        tmp = [0,0,0]
+        tmp[pidx] += 1
+        tmp2 = Tuple(Float64(x) for x in tmp)
+        double_exc[(p)] = tmp2 
+    end
+    return double_exc
+end
+
 function initalize_sig(v::RASVector)
     sig = OrderedDict{RasBlock, Array{Float64, 3}}()#={{{=#
     for (block, vec) in v.data
         sig[block] = zeros(size(vec))
+    end
+    return sig
+end#=}}}=#
+
+function initalize_sig_ba(v::RASVector)
+    sig = OrderedDict{RasBlock, Array{Float64, 3}}()#={{{=#
+    for (block, vec) in v.data
+        sig[block] = zeros(size(vec,2), size(vec,1), size(vec,3))
     end
     return sig
 end#=}}}=#
@@ -686,23 +793,58 @@ function get_dim_fock(fock::Tuple{Int,Int,Int}, ras_spaces::SVector{3, Int})
     return dim1*dim2*dim3
 end#=}}}=#
 
+function _fill_Ckl!(Ckl::OrderedDict{RasBlock, Array{Float64, 3}}, focka::Tuple{Int,Int,Int}, v::RASVector, L::Vector{Int}, nroots::Int)
+    empty!(Ckl)#={{{=#
+    nI = length(L)
+
+    for (blocks, vec) in v.data
+        if blocks.focka == focka
+            Ckl[blocks] = zeros(size(vec))
+        end
+    end
+    
+    for (sub_block, vec2) in Ckl
+        for si in 1:nroots
+            for Jb in 1:size(vec2,2)
+                for Li in 1:nI
+                    Ckl[sub_block][Li, Jb, si] = v.data[sub_block][abs(L[Li]), Jb, si]*sign(L[Li])
+                end
+            end
+        end
+    end
+end#=}}}=#
+
 """
 Sigma one (beta)
 """
 function sigma_one(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, lu::Dict{Tuple{Int,Int,Int}, Array{Int,3}}) where T
-    sig1 = initalize_sig(v)#={{{=#
+    sig1 = initalize_sig_ba(v)#={{{=#
     single_excit = make_single_excit(ras_spaces)
     gkl = get_gkl(ints, sum(ras_spaces)) 
     no = sum(ras_spaces)
-    nroots =1
+    first_entry = first(v.data)
+    na = sum(first_entry[1].focka)
+    nroots = size(first_entry[2],3)
     
+    #sign to switch from (a,b) to (b,a) for optimizing
+    sgnK = 1 
+    if (na) % 2 != 0 
+        sgnK = -sgnK
+    end
+    
+    v_perm = initalize_sig_ba(v)
+
     for (block1, vec) in v.data
-        nroots = size(vec,3)
+        v_perm[block1] .= sgnK.*permutedims(v.data[block1], (2,1,3))
+    end
+    
+    for (block1, vec) in v_perm
         for ((k_range, l_range), delta1) in single_excit
             block2 = RasBlock(block1.focka, block1.fockb.+delta1)
-            haskey(v.data,block2) || continue
-            F = zeros(size(v.data[block2], 2))
-            for Ib in 1:size(vec,2)
+            haskey(v_perm,block2) || continue
+            F = zeros(size(v_perm[block2], 1))
+            #F = zeros(size(v.data[block2], 2))
+            for Ib in 1:size(vec,1)
                 fill!(F, 0.0)
                 for l in l_range, k in k_range  
                     Jb = lu[block1.fockb][k,l,Ib]
@@ -713,7 +855,7 @@ function sigma_one(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, 
                     comb_kl = (l-1)*no + k
                     for ((i_range, j_range), delta2) in single_excit
                         block3 = RasBlock(block1.focka, block1.fockb.+delta1.+delta2)
-                        haskey(v.data,block3) || continue
+                        haskey(v_perm,block3) || continue
                         #when block3 == block2 can do double excitations and contract with same F array
                         if block3 == block2
                             for j in j_range, i in i_range
@@ -740,10 +882,12 @@ function sigma_one(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, 
                     end
                 end
 
-                @views sig_Ib = sig1[block1][:,Ib,:]
-                @views C = v.data[block2]
+                @views sig_Ib = sig1[block1][Ib,:,:]
+                #@views sig_Ib = sig1[block1][:,Ib,:]
+                @views C = v_perm[block2]
                 @tensor begin
-                    sig_Ib[Ia, r] += F[Jb]*C[Ia, Jb, r]
+                    sig_Ib[Ia, r] += F[Jb]*C[Jb, Ia, r]
+                    #sig_Ib[Ia, r] += F[Jb]*C[Ia, Jb, r]
                 end
             end
             
@@ -751,10 +895,12 @@ function sigma_one(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, 
             #don't need to compute single excitations bec all were found in above block
             for ((i_range, j_range), delta2) in single_excit
                 block3 = RasBlock(block1.focka, block1.fockb.+delta1.+delta2)
-                haskey(v.data,block3) || continue
+                haskey(v_perm,block3) || continue
                 block3 != block2 || continue
-                F_ij = zeros(size(v.data[block3], 2))
-                for Ib in 1:size(vec,2)
+                F_ij = zeros(size(v_perm[block3], 1))
+                #F_ij = zeros(size(v.data[block3], 2))
+                for Ib in 1:size(vec,1)
+                #for Ib in 1:size(vec,2)
                     fill!(F_ij, 0.0)
                     for l in l_range, k in k_range
                         Jb = lu[block1.fockb][k,l,Ib]
@@ -784,10 +930,12 @@ function sigma_one(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, 
                         end
                     end
                     
-                    @views sig_Ib = sig1[block1][:,Ib,:]
-                    @views C = v.data[block3]
+                    @views sig_Ib = sig1[block1][Ib,:,:]
+                    #@views sig_Ib = sig1[block1][:,Ib,:]
+                    @views C = v_perm[block3]
                     @tensor begin
-                        sig_Ib[Ia, r] += F_ij[Jb]*C[Ia, Jb, r]
+                        sig_Ib[Ia, r] += F_ij[Jb]*C[Jb, Ia, r]
+                        #sig_Ib[Ia, r] += F_ij[Jb]*C[Ia, Jb, r]
                     end
                 end
             end
@@ -798,7 +946,7 @@ function sigma_one(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, 
     dim = get_dim(v)
     sig = zeros(Float64, dim, nroots)
     for (block, vec) in sig1
-        tmp = reshape(vec, (size(vec,1)*size(vec,2), nroots))
+        tmp = reshape(sgnK.*permutedims(vec, (2,1,3)), (size(vec,1)*size(vec,2), nroots))
         sig[starti:starti+(size(vec,1)*size(vec,2))-1, :] .= tmp
         starti += (size(vec,1)*size(vec,2))
     end
@@ -813,10 +961,9 @@ function sigma_two(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, 
     single_excit = make_single_excit(ras_spaces)
     gkl = get_gkl(ints, sum(ras_spaces)) 
     no = sum(ras_spaces)
-    nroots =1
+    nroots = size(first(v.data)[2],3)
 
     for (block1, vec) in v.data
-        nroots = size(vec,3)
         for ((k_range, l_range), delta1) in single_excit
             block2 = RasBlock(block1.focka.+delta1, block1.fockb)
             haskey(v.data,block2) || continue
@@ -928,15 +1075,14 @@ end#=}}}=#
 """
 Sigma three is the mixed spin block (both alpha and beta single excitations)
 """
-function sigma_three(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, lu::Dict{Tuple{Int,Int,Int}, Array{Int,3}})
+function sigma_three_old(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, lu::Dict{Tuple{Int,Int,Int}, Array{Int,3}})
     sig3 = initalize_sig(v)#={{{=#
     single_excit = make_single_excit(ras_spaces)
     no = sum(ras_spaces) 
     hkl = zeros(Float64, no, no)
-    nroots = 1 #this will chnage just need access to it for the contraction
+    nroots = size(first(v.data)[2],3)
 
     for (block1, vec) in v.data
-        nroots = size(vec,3)
         for ((k_range, l_range), delta_a) in single_excit
             for ((i_range, j_range), delta_b) in single_excit
                 block2 = RasBlock(block1.focka.+delta_a, block1.fockb.+delta_b)
@@ -968,8 +1114,74 @@ function sigma_three(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}
             end
         end
     end
-
     
+    starti = 1
+    dim = get_dim(v)
+    sig = zeros(Float64, dim, nroots)
+    for (block, vec) in sig3
+        tmp = reshape(vec, (size(vec,1)*size(vec,2), nroots))
+        sig[starti:starti+(size(vec,1)*size(vec,2))-1, :] .= tmp
+        starti += (size(vec,1)*size(vec,2))
+    end
+    return sig
+end#=}}}=#
+
+function get_beta!(i_range::Vector{Int}, j_range::Vector{Int}, lu::Array{Int,3}, hkl::Array{Float64,2}, nroots::Int, sign_a::Int, sigIa::SubArray{Float64, 2, Array{Float64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}}, true}, v2::SubArray{Float64, 2, Array{Float64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}}, true})
+                        
+    for j in j_range, i in i_range#={{{=#
+        #R = findall(!iszero, lu[i,j,:])
+        #L = lu[i,j,R]
+        R = Vector{Int}()
+        L = Vector{Int}()
+        for (Iidx, I) in enumerate(lu[i,j,:])
+            if I != 0
+                push!(R, Iidx)
+                push!(L, I)
+            end
+        end
+        length(R) != 0 || continue
+        h = hkl[j,i]
+        for Li in 1:length(R)
+            for si in 1:nroots
+                @inbounds sigIa[R[Li], si] += sign_a*sign(L[Li])*h*v2[abs(L[Li]), si]
+            end
+        end
+    end
+end#=}}}=#
+
+"""
+Sigma three is the mixed spin block (both alpha and beta single excitations)
+"""
+function sigma_three(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, lu::Dict{Tuple{Int,Int,Int}, Array{Int,3}})
+    sig3 = initalize_sig(v)#={{{=#
+    single_excit = make_single_excit(ras_spaces)
+    no = sum(ras_spaces) 
+    hkl = zeros(Float64, no, no)
+    nroots = size(first(v.data)[2],3)
+    
+    for (block1, vec) in v.data
+        for ((k_range, l_range), delta_a) in single_excit
+            for ((i_range, j_range), delta_b) in single_excit
+                block2 = RasBlock(block1.focka.+delta_a, block1.fockb.+delta_b)
+                haskey(v.data, block2) || continue
+                for aconfig in 1:size(vec, 1)
+                    @views sigIa = sig3[block1][aconfig, :, :]
+                    for l in l_range, k in k_range
+                        Ja = lu[block1.focka][k, l, aconfig]
+                        Ja != 0 || continue     
+                        sign_a = sign(Ja)
+                        Ja = abs(Ja)
+                        hkl .= ints.h2[:,:,l,k]
+                        @views v2 = v.data[block2][Ja, :, :]
+                        #gather
+                        get_beta!(i_range, j_range, lu[block1.fockb], hkl, nroots, sign_a, sigIa, v2)
+                    end
+                end
+            end
+        end
+    end
+    
+
     starti = 1
     dim = get_dim(v)
     sig = zeros(Float64, dim, nroots)
@@ -1281,7 +1493,7 @@ function compute_1rdm(prob::RASCIAnsatz_2, C::Vector)
     return rdm1a, rdm1b#=}}}=#
 end
 
-function compute_1rdm_2rdm(prob::RASCIAnsatz_2, C::Vector)
+function compute_1rdm_2rdm_old(prob::RASCIAnsatz_2, C::Vector)
     v = RASVector(C, prob)#={{{=#
     lu = fill_lu(v, prob.ras_spaces)
     single_excit = make_single_excit(prob.ras_spaces)
@@ -1440,6 +1652,181 @@ function compute_1rdm_2rdm(prob::RASCIAnsatz_2, C::Vector)
     
     return rdm1a, rdm1b, rdm2aa, rdm2bb, rdm2ab#=}}}=#
 end
+
+function compute_1rdm_2rdm(prob::RASCIAnsatz_2, C::Vector)
+    v = RASVector(C, prob)#={{{=#
+    lu = fill_lu(v, prob.ras_spaces)
+    rdm1a, rdm1b = compute_1rdm(prob, C)
+    rdm2aa = zeros(prob.no, prob.no, prob.no, prob.no)
+    rdm2bb = zeros(prob.no, prob.no, prob.no, prob.no)
+    rdm2ab = zeros(prob.no, prob.no, prob.no, prob.no)
+    
+    single_excit = make_single_excit(prob.ras_spaces)
+    double_excit = make_excitation_classes_ccaa(prob.ras_spaces)
+    
+    ras1 = range(start=1, stop=prob.ras_spaces[1])
+    ras2 = range(start=prob.ras_spaces[1]+1,stop=prob.ras_spaces[1]+prob.ras_spaces[2])
+    ras3 = range(start=prob.ras_spaces[1]+prob.ras_spaces[2]+1, stop=prob.ras_spaces[1]+prob.ras_spaces[2]+prob.ras_spaces[3])
+    
+    aconfig = zeros(Int, prob.na)
+    aconfig_a = zeros(Int, prob.na-1)
+    #alpha alpha p'q'rs
+    for (block1, vec) in v.data
+        idx = 0
+        det3 = SubspaceDeterminantString(prob.ras_spaces[3], block1.focka[3])
+        for n in 1:det3.max
+            det2 = SubspaceDeterminantString(prob.ras_spaces[2], block1.focka[2])
+            for j in 1:det2.max
+                det1 = SubspaceDeterminantString(prob.ras_spaces[1], block1.focka[1])
+                for i in 1:det1.max
+                    #idx = calc_full_ras_index(det1, det2, det3)
+                    idx += 1
+                    aconfig = [det1.config;det2.config.+det1.no;det3.config.+det1.no.+det2.no]
+
+                    for ((p_range, q_range, r_range, s_range), delta_e) in double_excit
+                        new_block = RasBlock(block1.focka.+ delta_e, block1.fockb)
+                        haskey(v.data, new_block) || continue
+                        for s in s_range
+                            tmp = deepcopy(aconfig)
+                            sgn_a, aconfig_a = apply_annihilation(tmp, s)
+                            sgn_a != 0 || continue
+                            #if length(aconfig_a) != prob.na -1
+                            #    error("a")
+                            #end
+                            for r in r_range
+                                r != s || continue
+                                tmp2 = deepcopy(aconfig_a)
+                                sgn_aa, aconfig_aa = apply_annihilation(tmp2, r)
+                                #if length(aconfig_aa) != prob.na -2
+                                #    error("aa")
+                                #end
+                                sgn_aa != 0 || continue
+                                for q in q_range
+                                    tmp3 = deepcopy(aconfig_aa)
+                                    sgn_c, config_c = apply_creation(tmp3, q)
+                                    sgn_c != 0 || continue
+                                    #if length(config_c) != prob.na -1
+                                    #    error("c")
+                                    #end
+                                    for p in p_range
+                                        p != q || continue
+                                        tmp4 = deepcopy(config_c)
+                                        d1_c, d2_c, d3_c = breakup_config(tmp4, ras1, ras2, ras3)
+                                        sgn_cc, idx_new = apply_creation!(d1_c, d2_c, d3_c, ras1, ras2, ras3, p)
+                                        sgn_cc != 0 || continue
+                                        rdm2aa[p,s,q,r] += sgn_a*sgn_aa*sgn_c*sgn_cc*dot(v.data[new_block][idx_new,:], v.data[block1][idx,:])
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    incr!(det1)
+                end
+                incr!(det2)
+            end
+            incr!(det3)
+        end
+    end
+    
+    #beta beta p'q'rs
+    bconfig = zeros(Int, prob.nb)
+    bconfig_a = zeros(Int, prob.nb-1)
+    for (block1, vec) in v.data
+        idx = 0
+        det3 = SubspaceDeterminantString(prob.ras_spaces[3], block1.fockb[3])
+        for n in 1:det3.max
+            det2 = SubspaceDeterminantString(prob.ras_spaces[2], block1.fockb[2])
+            for j in 1:det2.max
+                det1 = SubspaceDeterminantString(prob.ras_spaces[1], block1.fockb[1])
+                for i in 1:det1.max
+                    idx += 1
+                    #idx = calc_full_ras_index(det1, det2, det3)
+                    bconfig = [det1.config;det2.config.+det1.no;det3.config.+det1.no.+det2.no]
+                    for ((p_range, q_range, r_range, s_range), delta_e) in double_excit
+                        new_block = RasBlock(block1.focka, block1.fockb.+delta_e)
+                        haskey(v.data, new_block) || continue
+                        for s in s_range
+                            tmp = deepcopy(bconfig)
+                            sgn_a, bconfig_a = apply_annihilation(tmp, s)
+                            sgn_a != 0 || continue
+                            #if length(aconfig_a) != prob.na -1
+                            #    error("a")
+                            #end
+                            for r in r_range
+                                r != s || continue
+                                tmp2 = deepcopy(bconfig_a)
+                                sgn_aa, bconfig_aa = apply_annihilation(tmp2, r)
+                                #if length(aconfig_aa) != prob.na -2
+                                #    error("aa")
+                                #end
+                                sgn_aa != 0 || continue
+                                for q in q_range
+                                    tmp3 = deepcopy(bconfig_aa)
+                                    sgn_c, config_c = apply_creation(tmp3, q)
+                                    sgn_c != 0 || continue
+                                    #if length(config_c) != prob.na -1
+                                    #    error("c")
+                                    #end
+                                    for p in p_range
+                                        p != q || continue
+                                        tmp4 = deepcopy(config_c)
+                                        d1_c, d2_c, d3_c = breakup_config(tmp4, ras1, ras2, ras3)
+                                        sgn_cc, idx_new = apply_creation!(d1_c, d2_c, d3_c, ras1, ras2, ras3, p)
+                                        sgn_cc != 0 || continue
+                                        rdm2bb[p,s,q,r] += sgn_a*sgn_aa*sgn_c*sgn_cc*dot(v.data[new_block][:,idx_new], v.data[block1][:,idx])
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    incr!(det1)
+                end
+                incr!(det2)
+            end
+            incr!(det3)
+        end
+    end
+
+    #alpha beta
+    for (block1, vec) in v.data
+        for ((k_range, l_range), delta_a) in single_excit
+            for ((i_range, j_range), delta_b) in single_excit
+                block2 = RasBlock(block1.focka.+delta_a, block1.fockb.+delta_b)
+                haskey(v.data, block2) || continue
+                for aconfig in 1:size(vec, 1)
+                    for l in l_range, k in k_range
+                        Ja = lu[block1.focka][k, l, aconfig]
+                        Ja != 0 || continue     
+                        sign_a = sign(Ja)
+                        Ja = abs(Ja)
+                        for bconfig in 1:size(vec, 2)
+                            for j in j_range, i in i_range
+                                Jb = lu[block1.fockb][i, j, bconfig]
+                                Jb != 0 || continue     
+                                sign_b = sign(Jb)
+                                Jb = abs(Jb)
+                                sgn = sign_a*sign_b
+                                rdm2ab[l,k,j,i] += sgn*v.data[block2][Ja,Jb]*v.data[block1][aconfig, bconfig]
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return rdm1a, rdm1b, rdm2aa, rdm2bb, rdm2ab#=}}}=#
+end
+
+function make_ras_spaces(ras_spaces::SVector{Int,3})
+    ras1 = range(start=1, stop=ras_spaces[1])
+    ras2 = range(start=ras_spaces[1]+1,stop=ras_spaces[1]+ras_spaces[2])
+    ras3 = range(start=ras_spaces[1]+ras_spaces[2]+1, stop=ras_spaces[1]+ras_spaces[2]+ras_spaces[3])
+    return ras1, ras2, ras3
+end
+
+    
+    
 
 
 
