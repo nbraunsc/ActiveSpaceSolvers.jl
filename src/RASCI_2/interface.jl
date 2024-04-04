@@ -100,13 +100,13 @@ function LinearMaps.LinearMap(ints::InCoreInts, prob::RASCIAnsatz_2) where T
 end
 
 """
-    LinOpMat(ints, prb::FCIAnsatz)
+    LinOpMat(ints, prb::RASCIAnsatz_2)
 
 Get LinearMap with takes a vector and returns action of H on that vector
 
 # Arguments
 - ints: `InCoreInts` object
-- prb:  `FCIAnsatz` object
+- prb:  `RASCIAnsatz_2` object
 """
 function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where T
 
@@ -131,7 +131,8 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where 
         
         @time sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
         @time sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
-        @time sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
+        @time sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three_new(rasvec, ints, prob.ras_spaces, lu)
+        #@time sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
         
         sig = sigma1 + sigma2 + sigma3
         
@@ -186,7 +187,7 @@ function ActiveSpaceSolvers.compute_s2(sol::Solution{RASCIAnsatz_2,T}) where {T}
 end
 
 """
-    build_S2_matrix(P::RASCIAnsatz)
+    build_S2_matrix(P::RASCIAnsatz_2)
 
 Build the S2 matrix in the Slater Determinant Basis  specified by `P`
 """
@@ -358,7 +359,7 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz_2)
 end
 
 """
-    build_H_matrix(ints, P::RASCIAnsatz)
+    build_H_matrix(ints, P::RASCIAnsatz_2)
 
 Build the Hamiltonian defined by `ints` in the Slater Determinant Basis  specified by `P`
 """
@@ -379,7 +380,7 @@ function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts, prob::RASCIAnsatz_2
 end
 
 """
-    compute_1rdm(sol::Solution{RASCIAnsatz,T}; root=1) where {T}
+    compute_1rdm(sol::Solution{RASCIAnsatz_2,T}; root=1) where {T}
 """
 function ActiveSpaceSolvers.compute_1rdm(sol::Solution{RASCIAnsatz_2,T}; root=1) where {T}
     return ActiveSpaceSolvers.RASCI_2.compute_1rdm(sol.ansatz, sol.vectors[:,root])
@@ -391,6 +392,194 @@ end
 function ActiveSpaceSolvers.compute_1rdm_2rdm(sol::Solution{RASCIAnsatz_2,T}; root=1) where {T}
     return ActiveSpaceSolvers.RASCI_2.compute_1rdm_2rdm(sol.ansatz, sol.vectors[:,root])
 end
+
+"""
+    compute_operator_c_a(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+
+Compute representation of a operator between states `bra_v` and `ket_v` for alpha
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_c_a(bra::Solution{RASCIAnsatz_2,T}, 
+                                                 ket::Solution{RASCIAnsatz_2,T}) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_operator_c_a(bra::Solution{RASCIAnsatz_2}, ket::Solution{RASCIAnsatz_2})
+end
+
+"""
+    compute_operator_a_b(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+
+Compute representation of a operator between states `bra_v` and `ket_v` for beta 
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_c_b(bra::Solution{RASCIAnsatz_2,T}, 
+                                                 ket::Solution{RASCIAnsatz_2,T}) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_operator_c_b(bra::Solution{RASCIAnsatz_2}, 
+                                                 ket::Solution{RASCIAnsatz_2})
+end
+
+"""
+    compute_operator_ca_aa(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+
+Compute representation of a'a operators between states `bra_v` and `ket_v` for alpha-alpha
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_ca_aa(bra::Solution{RASCIAnsatz_2,T}, 
+                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_operator_ca_aa(bra::Solution{RASCIAnsatz_2}, 
+                                                 ket::Solution{RASCIAnsatz_2})
+end
+
+"""
+    compute_operator_ca_bb(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+
+Compute representation of a'a operators between states `bra_v` and `ket_v` for beta-beta 
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_ca_bb(bra::Solution{RASCIAnsatz_2,T}, 
+                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_operator_ca_bb(bra::Solution{RASCIAnsatz_2}, 
+                                                 ket::Solution{RASCIAnsatz_2})
+end
+
+
+"""
+    compute_operator_ca_ab(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+
+Compute representation of a'a operators between states `bra_v` and `ket_v` for alpha-beta 
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_ca_ab(bra::Solution{RASCIAnsatz_2,T}, 
+                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_operator_ca_ab(bra::Solution{RASCIAnsatz_2}, 
+                                                           ket::Solution{RASCIAnsatz_2})
+end
+
+
+"""
+    compute_operator_cc_aa(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+
+Compute representation of a'a' operators between states `bra_v` and `ket_v` for beta-beta 
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_cc_bb(bra::Solution{RASCIAnsatz_2,T}, 
+                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_operator_cc_bb(bra::Solution{RASCIAnsatz_2}, 
+                                                 ket::Solution{RASCIAnsatz_2})
+end
+
+
+"""
+    compute_operator_cc_aa(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+
+Compute representation of a'a' operators between states `bra_v` and `ket_v` for alpha-alpha 
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_cc_aa(bra::Solution{RASCIAnsatz_2,T}, 
+                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_operator_cc_aa(bra::Solution{RASCIAnsatz_2}, 
+                                                 ket::Solution{RASCIAnsatz_2})
+end
+
+
+"""
+    compute_operator_cc_ab(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+
+Compute representation of a'a' operators between states `bra_v` and `ket_v` for alpha-beta 
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_cc_ab(bra::Solution{RASCIAnsatz_2,T}, 
+                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_operator_cc_ab(bra::Solution{RASCIAnsatz_2}, 
+                                                 ket::Solution{RASCIAnsatz_2})
+end
+
+
+"""
+    compute_operator_cca_aaa(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+
+Compute representation of a'a'a operators between states `bra_v` and `ket_v` for alpha-alpha-alpha 
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_cca_aaa(bra::Solution{RASCIAnsatz_2,T}, 
+                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_operator_cca_aaa(bra::Solution{RASCIAnsatz_2}, 
+                                                 ket::Solution{RASCIAnsatz_2})
+end
+
+
+"""
+    compute_operator_cca_bbb(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+
+Compute representation of a'a'a operators between states `bra_v` and `ket_v` for beta-beta-beta 
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_cca_bbb(bra::Solution{RASCIAnsatz_2,T}, 
+                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_operator_cca_bbb(bra::Solution{RASCIAnsatz_2}, 
+                                                 ket::Solution{RASCIAnsatz_2})
+end
+
+
+"""
+    compute_operator_cca_aba(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+
+Compute representation of a'a'a operators between states `bra_v` and `ket_v` for alpha-beta-alpha 
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_cca_aba(bra::Solution{RASCIAnsatz_2,T}, 
+                                                     ket::Solution{RASCIAnsatz_2,T}) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_operator_cca_aba(bra::Solution{RASCIAnsatz_2}, 
+                                                             ket::Solution{RASCIAnsatz_2})
+end
+
+
+"""
+    compute_operator_cca_abb(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+
+Compute representation of a'a'a operators between states `bra_v` and `ket_v` for alpha-beta-beta 
+# Arguments
+- `bra`: solutions for the left hand side
+- `ket`: solutions for the right hand side
+
+"""
+function ActiveSpaceSolvers.compute_operator_cca_abb(bra::Solution{RASCIAnsatz_2,T}, 
+                                                     ket::Solution{RASCIAnsatz_2,T}) where {T}
+    return ActiveSpaceSolvers.RASCI_2.compute_operator_cca_abb(bra::Solution{RASCIAnsatz_2}, 
+                                                 ket::Solution{RASCIAnsatz_2}) 
+end
+
 
     
 

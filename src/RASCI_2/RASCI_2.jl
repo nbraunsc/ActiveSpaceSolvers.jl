@@ -8,6 +8,7 @@ using Printf
 include("interface.jl");
 include("type_SubspaceDeterminantString.jl");
 include("type_RASVector.jl");
+include("TDMs.jl");
 
 # import stuff so we can extend and export
 import LinearMaps: LinearMap

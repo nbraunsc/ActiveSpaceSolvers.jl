@@ -207,11 +207,12 @@ function apply_annihilation(det::Vector{Int}, orb_a)
         if spot % 2 != 1
             sign_a = -1
         end
-        if length(det) == 1
-            return sign_a, [det]
-        else
-            return sign_a, det
-        end
+        #if length(det) == 1
+        #    return sign_a, [det]
+        #else
+        #    return sign_a, det
+        #end
+        return sign_a, det
     else
         return 0, 0
     end
@@ -301,14 +302,14 @@ function apply_creation!(det1::Vector{Int}, det2::Vector{Int}, det3::Vector{Int}
             insert!(det1, insert_here, orb_c)
         end
         
-        if insert_here % 2 != 1
+    if insert_here % 2 != 1
             sign_c = -1
         end
         det1_c = SubspaceDeterminantString(length(ras1), length(det1), det1)
         det2_c = SubspaceDeterminantString(length(ras2), length(det2), det2.-length(ras1))
         det3_c = SubspaceDeterminantString(length(ras3), length(det3), det3.-length(ras1).-length(ras2))
 
-    idx = calc_full_ras_index(det1_c, det2_c, det3_c)
+        idx = calc_full_ras_index(det1_c, det2_c, det3_c)
         return sign_c, idx
 
     elseif orb_c in ras2
@@ -325,7 +326,7 @@ function apply_creation!(det1::Vector{Int}, det2::Vector{Int}, det3::Vector{Int}
                 if det2[i] > orb_c
                     insert_here = i
                     break
-                else
+else
                     insert_here += 1
                 end
             end
@@ -668,7 +669,7 @@ function make_excitation_classes_ccaa(ras_spaces::SVector{3, Int})
                     tmp[ridx] -= 1
                     tmp[sidx] -= 1
                     tmp2 = Tuple(Float64(x) for x in tmp)
-                    double_exc[(p, q, r, s)] = tmp2
+                    double_exc[(p,q,r,s)] = tmp2
                 end
             end
         end
@@ -693,7 +694,7 @@ function make_excitation_classes_cca(ras_spaces::SVector{3, Int})
                 tmp[qidx] += 1
                 tmp[ridx] -= 1
                 tmp2 = Tuple(Float64(x) for x in tmp)
-                double_exc[(p, q, r)] = tmp2 
+                double_exc[(r,q,p)] = tmp2 
             end
         end
     end
@@ -715,7 +716,28 @@ function make_excitation_classes_cc(ras_spaces::SVector{3, Int})
             tmp[pidx] += 1
             tmp[qidx] += 1
             tmp2 = Tuple(Float64(x) for x in tmp)
-            double_exc[(p, q)] = tmp2 
+            double_exc[(q,p)] = tmp2 
+        end
+    end
+    return double_exc
+end
+
+function make_excitation_classes_ca(ras_spaces::SVector{3, Int})
+
+    i_orbs = range(start=1, stop=ras_spaces[1])
+    ii_orbs = range(start=ras_spaces[1]+1,stop=ras_spaces[1]+ras_spaces[2])
+    iii_orbs = range(start=ras_spaces[1]+ras_spaces[2]+1, stop=ras_spaces[1]+ras_spaces[2]+ras_spaces[3])
+
+    ranges = [i_orbs, ii_orbs, iii_orbs]
+    
+    double_exc = OrderedDict{Tuple{Vector{Int}, Vector{Int}}, Tuple{Int, Int, Int}}()
+    for (pidx, p) in enumerate(ranges)
+        for (qidx, q) in enumerate(ranges)
+            tmp = [0,0,0]
+            tmp[pidx] += 1
+            tmp[qidx] -= 1
+            tmp2 = Tuple(Float64(x) for x in tmp)
+            double_exc[(q,p)] = tmp2 
         end
     end
     return double_exc
@@ -1126,7 +1148,8 @@ function sigma_three_old(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, 
     return sig
 end#=}}}=#
 
-function get_beta!(i_range::Vector{Int}, j_range::Vector{Int}, lu::Array{Int,3}, hkl::Array{Float64,2}, nroots::Int, sign_a::Int, sigIa::SubArray{Float64, 2, Array{Float64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}}, true}, v2::SubArray{Float64, 2, Array{Float64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}}, true})
+# function get_beta!(i_range::Vector{Int}, j_range::Vector{Int}, lu::Array{Int,3}, hkl::Array{Float64,2}, nroots::Int, sign_a::Int, sigIa::SubArray{Float64, 2, Array{Float64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}}, true}, v2::SubArray{Float64, 2, Array{Float64, 3}, Tuple{Int64, Base.Slice{Base.OneTo{Int64}}, Base.Slice{Base.OneTo{Int64}}}, true})
+function get_beta!(i_range::Vector{Int}, j_range::Vector{Int}, lu::Array{Int,3}, hkl::Array{Float64,2}, nroots::Int, sign_a::Int, sigIa, v2)
                         
     for j in j_range, i in i_range#={{{=#
         #R = findall(!iszero, lu[i,j,:])
@@ -1181,6 +1204,155 @@ function sigma_three(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}
         end
     end
     
+
+    starti = 1
+    dim = get_dim(v)
+    sig = zeros(Float64, dim, nroots)
+    for (block, vec) in sig3
+        tmp = reshape(vec, (size(vec,1)*size(vec,2), nroots))
+        sig[starti:starti+(size(vec,1)*size(vec,2))-1, :] .= tmp
+        starti += (size(vec,1)*size(vec,2))
+    end
+    return sig
+end#=}}}=#
+
+function get_ckl_dim(ras_spaces::SVector{3,Int}, fock::Tuple{Int,Int,Int}, k_range, l_range)
+    dim1 = 0#={{{=#
+    dim2 = 0
+    ras1, ras2, ras3 = make_ras_spaces(ras_spaces)
+    if k_range[1] in ras1
+        if l_range[1] in ras1
+            dim1=binomial(ras_spaces[1]-1,fock[1]-1)*binomial(ras_spaces[2],fock[2])*binomial(ras_spaces[3],fock[3])
+            dim2=binomial(ras_spaces[1]-2,fock[1]-1)*binomial(ras_spaces[2],fock[2])*binomial(ras_spaces[3],fock[3])
+        elseif l_range[1] in ras2
+            dim2 = binomial(ras_spaces[1]-1,fock[1]-1)*(binomial(ras_spaces[2],fock[2])-binomial(ras_spaces[2]-1, fock[2]-1))*binomial(ras_spaces[3], fock[3])
+        else #l_range in ras3
+            dim2 = binomial(ras_spaces[1]-1,fock[1]-1)*(binomial(ras_spaces[3],fock[3])-binomial(ras_spaces[3]-1, fock[3]-1))*binomial(ras_spaces[2], fock[2])
+        end
+        return dim1, dim2
+
+    elseif k_range[1] in ras2
+        if l_range[1] in ras1
+            dim2 = binomial(ras_spaces[2]-1,fock[2]-1)*(binomial(ras_spaces[1],fock[1])-binomial(ras_spaces[1]-1, fock[1]-1))*binomial(ras_spaces[3], fock[3])
+        elseif l_range[1] in ras2
+            dim1=binomial(ras_spaces[2]-1,fock[2]-1)*binomial(ras_spaces[1],fock[1])*binomial(ras_spaces[3],fock[3])
+            dim2=binomial(ras_spaces[2]-2,fock[2]-1)*binomial(ras_spaces[1],fock[1])*binomial(ras_spaces[3],fock[3])
+        else #l_range in ras3
+            dim2 = binomial(ras_spaces[2]-1,fock[2]-1)*(binomial(ras_spaces[3],fock[3])-binomial(ras_spaces[3]-1, fock[3]-1))*binomial(ras_spaces[1],fock[1])
+        end
+        return dim1, dim2
+    else
+        if l_range[1] in ras1
+            dim2 = binomial(ras_spaces[3]-1,fock[3]-1)*(binomial(ras_spaces[1],fock[1])-binomial(ras_spaces[1]-1, fock[1]-1))*binomial(ras_spaces[2],fock[2])
+        elseif l_range[1] in ras2
+            dim2 = binomial(ras_spaces[3]-1,fock[3]-1)*(binomial(ras_spaces[2],fock[2])-binomial(ras_spaces[2]-1, fock[2]-1))*binomial(ras_spaces[1],fock[1])
+        else #l_range in ras3
+            dim1=binomial(ras_spaces[3]-1,fock[3]-1)*binomial(ras_spaces[1],fock[1])*binomial(ras_spaces[2],fock[2])
+            dim2=binomial(ras_spaces[3]-2,fock[3]-1)*binomial(ras_spaces[1],fock[1])*binomial(ras_spaces[2],fock[2])
+        end
+        return dim1, dim2
+    end#=}}}=#
+end
+
+function _mult!(Ckl::Array{T,3}, FJb::Array{T,1}, VI::Array{T,2}) where {T}
+    #={{{=#
+    nI = size(Ckl)[1]
+    n_roots::Int = size(Ckl)[3]
+    ket_max = size(FJb)[1]
+    tmp = 0.0
+    for si in 1:n_roots
+        @views V = VI[:,si]
+        for Jb in 1:ket_max
+            tmp = FJb[Jb]
+            if abs(tmp) > 1e-14
+                @inbounds @simd for I in 1:nI
+                    VI[I,si] += tmp*Ckl[I,Jb,si]
+                end
+            end
+        end
+    end
+end
+#=}}}=#
+
+"""
+Sigma three is the mixed spin block (both alpha and beta single excitations)
+"""
+function sigma_three_new(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, lu::Dict{Tuple{Int,Int,Int}, Array{Int,3}})
+    sig3 = initalize_sig(v)#={{{=#
+    single_excit = make_single_excit(ras_spaces)
+    no = sum(ras_spaces) 
+    hkl = zeros(Float64, no, no)
+    nroots = size(first(v.data)[2],3)
+    
+    for (block1, vec) in v.data
+        Ckl = Array{Float64,3}
+        for ((k_range, l_range), delta_a) in single_excit
+            for ((i_range, j_range), delta_b) in single_excit
+                block2 = RasBlock(block1.focka.+delta_a, block1.fockb.+delta_b)
+                haskey(v.data, block2) || continue
+                dim1,dim2 = get_ckl_dim(ras_spaces, block1.focka, k_range, l_range)
+                Ckl_scr1 = zeros(Float64, dim1, size(v.data[block2],2), size(vec,3))
+                Ckl_scr2 = zeros(Float64, dim2, size(v.data[block2],2), size(vec,3))
+                F = zeros(Float64, size(v.data[block2],2))
+                for l in l_range, k in k_range
+                    if l == k
+                        R = zeros(Int, dim1)
+                        L = zeros(Int, dim1)
+                        Ckl = deepcopy(Ckl_scr1)
+                        VI = zeros(Float64, dim1 ,nroots)
+                    else
+                        R = zeros(Int, dim2)
+                        L = zeros(Int, dim2)
+                        Ckl = deepcopy(Ckl_scr2)
+                        VI = zeros(Float64, dim2 ,nroots)
+                    end
+                    count = 0
+                    for (Iidx, I) in enumerate(lu[block1.focka][k,l,:])
+                        if I != 0
+                            count += 1
+                            R[count] = Iidx
+                            L[count] = I
+                        end
+                    end
+                    
+                    hkl .= ints.h2[:,:,l,k]
+                    for si in 1:nroots
+                        for Jb in 1:size(v.data[block2],2)
+                            for Li in 1:count
+                                Ckl[Li,Jb,si] = v.data[block2][abs(L[Li]), Jb, si]*sign(L[Li])
+                            end
+                        end
+                    end
+                    for Ib in 1:size(vec,2)
+                        fill!(F, 0.0)
+                        for j in j_range, i in i_range
+                            Jb = lu[block1.fockb][i, j, Ib]
+                            Jb != 0 || continue
+                            sign_b = sign(Jb)
+                            Jb = abs(Jb)
+                            F[Jb] += hkl[j,i]*sign_b
+                        end
+
+                        #contract with Ckl and add into VI
+                        #
+                        fill!(VI, 0.0)
+                        _mult!(Ckl, F, VI)
+                        #@tensor begin
+                        #    VI[I,r] += F[J]*Ckl[I,J,r] 
+                        #end
+
+                        #scatter back out to sig3[block1][R,Ib,nr]
+                        @views sigIB = sig3[block1][R,Ib,:]
+                        for si in 1:nroots
+                            for Li in 1:count
+                                sigIB[Li,si] += VI[Li,si]
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
 
     starti = 1
     dim = get_dim(v)
@@ -1663,10 +1835,12 @@ function compute_1rdm_2rdm(prob::RASCIAnsatz_2, C::Vector)
     
     single_excit = make_single_excit(prob.ras_spaces)
     double_excit = make_excitation_classes_ccaa(prob.ras_spaces)
+
+    ras1, ras2, ras3 = make_ras_spaces(prob.ras_spaces)
     
-    ras1 = range(start=1, stop=prob.ras_spaces[1])
-    ras2 = range(start=prob.ras_spaces[1]+1,stop=prob.ras_spaces[1]+prob.ras_spaces[2])
-    ras3 = range(start=prob.ras_spaces[1]+prob.ras_spaces[2]+1, stop=prob.ras_spaces[1]+prob.ras_spaces[2]+prob.ras_spaces[3])
+    #ras1 = range(start=1, stop=prob.ras_spaces[1])
+    #ras2 = range(start=prob.ras_spaces[1]+1,stop=prob.ras_spaces[1]+prob.ras_spaces[2])
+    #ras3 = range(start=prob.ras_spaces[1]+prob.ras_spaces[2]+1, stop=prob.ras_spaces[1]+prob.ras_spaces[2]+prob.ras_spaces[3])
     
     aconfig = zeros(Int, prob.na)
     aconfig_a = zeros(Int, prob.na-1)
@@ -1690,24 +1864,25 @@ function compute_1rdm_2rdm(prob::RASCIAnsatz_2, C::Vector)
                             tmp = deepcopy(aconfig)
                             sgn_a, aconfig_a = apply_annihilation(tmp, s)
                             sgn_a != 0 || continue
-                            #if length(aconfig_a) != prob.na -1
-                            #    error("a")
-                            #end
+                            if length(aconfig_a) != prob.na -1
+                                error("a")
+                            end
                             for r in r_range
                                 r != s || continue
                                 tmp2 = deepcopy(aconfig_a)
                                 sgn_aa, aconfig_aa = apply_annihilation(tmp2, r)
-                                #if length(aconfig_aa) != prob.na -2
-                                #    error("aa")
-                                #end
                                 sgn_aa != 0 || continue
+                                if length(aconfig_aa) != prob.na -2
+                                    println(aconfig_aa)
+                                    error("aa")
+                                end
                                 for q in q_range
                                     tmp3 = deepcopy(aconfig_aa)
                                     sgn_c, config_c = apply_creation(tmp3, q)
                                     sgn_c != 0 || continue
-                                    #if length(config_c) != prob.na -1
-                                    #    error("c")
-                                    #end
+                                    if length(config_c) != prob.na -1
+                                        error("c")
+                                    end
                                     for p in p_range
                                         p != q || continue
                                         tmp4 = deepcopy(config_c)
@@ -1818,7 +1993,7 @@ function compute_1rdm_2rdm(prob::RASCIAnsatz_2, C::Vector)
     return rdm1a, rdm1b, rdm2aa, rdm2bb, rdm2ab#=}}}=#
 end
 
-function make_ras_spaces(ras_spaces::SVector{Int,3})
+function make_ras_spaces(ras_spaces::SVector{3,Int})
     ras1 = range(start=1, stop=ras_spaces[1])
     ras2 = range(start=ras_spaces[1]+1,stop=ras_spaces[1]+ras_spaces[2])
     ras3 = range(start=ras_spaces[1]+ras_spaces[2]+1, stop=ras_spaces[1]+ras_spaces[2]+ras_spaces[3])
