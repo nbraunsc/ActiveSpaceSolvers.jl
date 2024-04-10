@@ -737,7 +737,7 @@ function make_excitation_classes_ca(ras_spaces::SVector{3, Int})
             tmp[pidx] += 1
             tmp[qidx] -= 1
             tmp2 = Tuple(Float64(x) for x in tmp)
-            double_exc[(q,p)] = tmp2 
+            double_exc[(p,q)] = tmp2 
         end
     end
     return double_exc
@@ -755,6 +755,24 @@ function make_excitation_classes_c(ras_spaces::SVector{3, Int})
     for (pidx, p) in enumerate(ranges)
         tmp = [0,0,0]
         tmp[pidx] += 1
+        tmp2 = Tuple(Float64(x) for x in tmp)
+        double_exc[(p)] = tmp2 
+    end
+    return double_exc
+end
+
+function make_excitation_classes_a(ras_spaces::SVector{3, Int})
+
+    i_orbs = range(start=1, stop=ras_spaces[1])
+    ii_orbs = range(start=ras_spaces[1]+1,stop=ras_spaces[1]+ras_spaces[2])
+    iii_orbs = range(start=ras_spaces[1]+ras_spaces[2]+1, stop=ras_spaces[1]+ras_spaces[2]+ras_spaces[3])
+
+    ranges = [i_orbs, ii_orbs, iii_orbs]
+    
+    double_exc = OrderedDict{Vector{Int},Tuple{Int, Int, Int}}()
+    for (pidx, p) in enumerate(ranges)
+        tmp = [0,0,0]
+        tmp[pidx] -= 1
         tmp2 = Tuple(Float64(x) for x in tmp)
         double_exc[(p)] = tmp2 
     end
@@ -1274,6 +1292,24 @@ function _mult!(Ckl::Array{T,3}, FJb::Array{T,1}, VI::Array{T,2}) where {T}
 end
 #=}}}=#
 
+function get_Ckl!(Ckl::Array{T,3}, v::Array{T,3}, L::Vector{Int}, count::Int, nroots::Int) where T
+    for si in 1:nroots#={{{=#
+        for Jb in 1:size(v,2)
+            for Li in 1:count
+                Ckl[Li,Jb,si] = v[abs(L[Li]), Jb, si]*sign(L[Li])
+            end
+        end
+    end
+end#=}}}=#
+
+function scatter!(sig, VI::Array{T,2}, count::Int, nroots::Int) where T
+    for si in 1:nroots#={{{=#
+        for Li in 1:count
+            sig[Li,si] += VI[Li,si]
+        end
+    end
+end#=}}}=#
+
 """
 Sigma three is the mixed spin block (both alpha and beta single excitations)
 """
@@ -1316,13 +1352,14 @@ function sigma_three_new(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, 
                     end
                     
                     hkl .= ints.h2[:,:,l,k]
-                    for si in 1:nroots
-                        for Jb in 1:size(v.data[block2],2)
-                            for Li in 1:count
-                                Ckl[Li,Jb,si] = v.data[block2][abs(L[Li]), Jb, si]*sign(L[Li])
-                            end
-                        end
-                    end
+                    get_Ckl!(Ckl, v.data[block2], L, count, nroots)
+                    #for si in 1:nroots
+                    #    for Jb in 1:size(v.data[block2],2)
+                    #        for Li in 1:count
+                    #            Ckl[Li,Jb,si] = v.data[block2][abs(L[Li]), Jb, si]*sign(L[Li])
+                    #        end
+                    #    end
+                    #end
                     for Ib in 1:size(vec,2)
                         fill!(F, 0.0)
                         for j in j_range, i in i_range
@@ -1343,11 +1380,12 @@ function sigma_three_new(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, 
 
                         #scatter back out to sig3[block1][R,Ib,nr]
                         @views sigIB = sig3[block1][R,Ib,:]
-                        for si in 1:nroots
-                            for Li in 1:count
-                                sigIB[Li,si] += VI[Li,si]
-                            end
-                        end
+                        scatter!(sigIB, VI, count, nroots)
+                        #for si in 1:nroots
+                        #    for Li in 1:count
+                        #        sigIB[Li,si] += VI[Li,si]
+                        #    end
+                        #end
                     end
                 end
             end
