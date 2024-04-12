@@ -34,7 +34,7 @@ Constructor
 - `max_h`: Max number of holes in RAS1
 - `max_p`: Max number of particles in RAS3
 """
-function RASCIAnsatz_2(no::Int, na, nb, ras_spaces::Any; h=0, p=ras_spaces[3], h2=0, p2=0)
+function RASCIAnsatz_2(no::Int, na, nb, ras_spaces::Any; h=0, p=ras_spaces[3])
     na <= no || throw(DimensionMismatch)
     nb <= no || throw(DimensionMismatch)
     sum(ras_spaces) == no || throw(DimensionMismatch)
@@ -43,21 +43,54 @@ function RASCIAnsatz_2(no::Int, na, nb, ras_spaces::Any; h=0, p=ras_spaces[3], h
     nb = convert(Int, nb)
     max_h = convert(Int8, h)
     max_p = convert(Int8, p)
-    max_h2 = convert(Int8, h2)
-    max_p2 = convert(Int8, p2)
-    rdim = calc_rdim(ras_spaces, na, nb, max_h, max_p, max_h2, max_p2)
+    max_h2 = Int8(0)
+    max_p2 = Int8(0)
+    rdim = calc_rdim(ras_spaces, na, nb, max_h, max_p)
     return RASCIAnsatz_2(no, na, nb, rdim, ras_spaces, max_h, max_p, max_h2, max_p2);
 end
 
-
-
 function Base.display(p::RASCIAnsatz_2)
-    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim, p.max_h, p.max_p)
+    @printf(" RASCI_2:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i MAX Holes: %i MAX Particles: %i MAX Holes(DDCI): %i MAX Particles(DDCI): %i \n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim, p.max_h, p.max_p, p.max_h2, p.max_p2)
 end
 
 function Base.print(p::RASCIAnsatz_2)
-    @printf(" RASCIAnsatz:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim, p.max_h, p.max_p)
+    @printf(" RASCIAnsatz_2:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim, p.max_h, p.max_p)
 end
+
+function DDCI(no::Int, na, nb, ras_spaces::Any; ddci="1x")
+    na <= no || throw(DimensionMismatch)
+    nb <= no || throw(DimensionMismatch)
+    sum(ras_spaces) == no || throw(DimensionMismatch)
+    ras_spaces = convert(SVector{3,Int},collect(ras_spaces))
+    na = convert(Int, na)
+    nb = convert(Int, nb)
+    if ddci=="1x"
+        h = 1
+        p = 0
+        h2 = 0
+        p2 = 1
+        max_h = convert(Int8, h)
+        max_p = convert(Int8, p)
+        max_h2 = convert(Int8, h2)
+        max_p2 = convert(Int8, p2)
+        rdim = calc_rdim_ddci(ras_spaces, na, nb, max_h, max_p, max_h2, max_p2)
+        return RASCIAnsatz_2(no, na, nb, rdim, ras_spaces, max_h, max_p, max_h2, max_p2);
+
+    elseif ddci=="2x"
+        h = 2
+        p = 1
+        h2 = 1
+        p2 = 2
+        max_h = convert(Int8, h)
+        max_p = convert(Int8, p)
+        max_h2 = convert(Int8, h2)
+        max_p2 = convert(Int8, p2)
+        rdim = calc_rdim_ddci(ras_spaces, na, nb, max_h, max_p, max_h2, max_p2)
+        return RASCIAnsatz_2(no, na, nb, rdim, ras_spaces, max_h, max_p, max_h2, max_p2);
+    end
+end
+
+
 
 """
     LinearMap(ints, prb::RASCIAnsatz_2)
@@ -129,10 +162,9 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where 
             nr = size(v)[2]
         end
         
-        @time sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
-        @time sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
-        @time sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three_new(rasvec, ints, prob.ras_spaces, lu)
-        #@time sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
+        sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
+        sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
+        sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
         
         sig = sigma1 + sigma2 + sigma3
         
@@ -142,7 +174,26 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where 
     return LinOpMat{T}(mymatvec, prob.dim, true)
 end
 
-function calc_rdim(ras_spaces::SVector{3, Int}, na::Int, nb::Int, max_h::Int8, max_p::Int8, max_h2::Int8, max_p2::Int8)
+function calc_rdim(ras_spaces::SVector{3, Int}, na::Int, nb::Int, max_h::Int8, max_p::Int8)
+    a_blocks, fock_as = make_blocks(ras_spaces, na, max_h, max_p)#={{{=#
+    b_blocks, fock_bs = make_blocks(ras_spaces, nb, max_h, max_p)
+    
+    start = 0
+    for i in 1:length(a_blocks)
+        dima = binomial(ras_spaces[1], fock_as[i][1])*binomial(ras_spaces[2], fock_as[i][2])*binomial(ras_spaces[3], fock_as[i][3])
+        for j in 1:length(b_blocks)
+            dimb = binomial(ras_spaces[1], fock_bs[j][1])*binomial(ras_spaces[2], fock_bs[j][2])*binomial(ras_spaces[3], fock_bs[j][3])
+            if a_blocks[i][1]+b_blocks[j][1]<= max_h
+                if a_blocks[i][2]+b_blocks[j][2] <= max_p
+                    start += dima*dimb
+                end
+            end
+        end
+    end#=}}}=#
+    return start
+end
+
+function calc_rdim_ddci(ras_spaces::SVector{3, Int}, na::Int, nb::Int, max_h::Int8, max_p::Int8, max_h2::Int8, max_p2::Int8)
     a_blocks, fock_as = make_blocks(ras_spaces, na, max_h, max_p)#={{{=#
     b_blocks, fock_bs = make_blocks(ras_spaces, nb, max_h, max_p)
     
@@ -159,17 +210,15 @@ function calc_rdim(ras_spaces::SVector{3, Int}, na::Int, nb::Int, max_h::Int8, m
         end
     end
     
-    if max_h2 != 0 && max_p2 != 0
-        a_blocks2, fock_as2 = make_blocks(ras_spaces, na, max_h2, max_p2)
-        b_blocks2, fock_bs2 = make_blocks(ras_spaces, nb, max_h2, max_p2)
-        for i in 1:length(a_blocks2)
-            dima = binomial(ras_spaces[1], fock_as2[i][1])*binomial(ras_spaces[2], fock_as2[i][2])*binomial(ras_spaces[3], fock_as2[i][3])
-            for j in 1:length(b_blocks2)
-                dimb = binomial(ras_spaces[1], fock_bs2[j][1])*binomial(ras_spaces[2], fock_bs2[j][2])*binomial(ras_spaces[3], fock_bs2[j][3])
-                if a_blocks2[i][1]+b_blocks2[j][1]<= max_h2
-                    if a_blocks2[i][2]+b_blocks2[j][2] <= max_p2
-                        start += dima*dimb
-                    end
+    a_blocks2, fock_as2 = make_blocks(ras_spaces, na, max_h2, max_p2)
+    b_blocks2, fock_bs2 = make_blocks(ras_spaces, nb, max_h2, max_p2)
+    for i in 1:length(a_blocks2)
+        dima = binomial(ras_spaces[1], fock_as2[i][1])*binomial(ras_spaces[2], fock_as2[i][2])*binomial(ras_spaces[3], fock_as2[i][3])
+        for j in 1:length(b_blocks2)
+            dimb = binomial(ras_spaces[1], fock_bs2[j][1])*binomial(ras_spaces[2], fock_bs2[j][2])*binomial(ras_spaces[3], fock_bs2[j][3])
+            if a_blocks2[i][1]+b_blocks2[j][1]<= max_h2
+                if a_blocks2[i][2]+b_blocks2[j][2] <= max_p2
+                    start += dima*dimb
                 end
             end
         end
@@ -210,48 +259,92 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz_2)
     
     nroots = size(v,2)
     v2 = RASVector(v, ansatz)
-    w = initalize_sig(v2)
     
     sgnK = -1
     if ansatz.na % 2 != 0 
         sgnK = -sgnK
     end
+
+    bra_ansatz = RASCIAnsatz_2(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.ras_spaces, h=ansatz.max_h, p=ansatz.max_p)
+    wtmp = RASVector(zeros(bra_ansatz.dim, nroots), bra_ansatz)
+    w = initalize_sig(wtmp)
     
-    ras1 = range(start=1, stop=ansatz.ras_spaces[1])
-    ras2 = range(start=ansatz.ras_spaces[1]+1,stop=ansatz.ras_spaces[1]+ansatz.ras_spaces[2])
-    ras3 = range(start=ansatz.ras_spaces[1]+ansatz.ras_spaces[2]+1, stop=ansatz.ras_spaces[1]+ansatz.ras_spaces[2]+ansatz.ras_spaces[3])
+    create_list = make_excitation_classes_c(ansatz.ras_spaces)
+    ann_list = make_excitation_classes_a(ansatz.ras_spaces)
+    ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI_2.make_ras_spaces(ansatz.ras_spaces)
+    #note ras1 is same as ras1_bra so do not need to compute them
     
     for (block1, vec) in v2.data
-        as = get_configs(ansatz.ras_spaces, block1.focka)
-        bs = get_configs(ansatz.ras_spaces, block1.fockb)
-        for Ib in 1:length(bs)
-            config_b = bs[Ib]
-            for Ia in 1:length(as)
-                config_a = as[Ia]
-                for p in config_a
-                    delta_a = find_fock_delta_a(p,ras1, ras2, ras3)
-                    delta_b = find_fock_delta_c(p,ras1, ras2, ras3)
-                    new_block = RasBlock(block1.focka.+delta_a, block1.fockb.+delta_b)
-                    haskey(v2.data, new_block) || continue
-                    
-                    tmp_a = deepcopy(config_a)
-                    tmp_b = deepcopy(config_b)
-                    sgn_a, config_ap = apply_annihilation(tmp_a, p)
-                    d1_a, d2_a, d3_a = breakup_config(config_ap, ras1, ras2, ras3)
-                    #this calc full ras index doesnt actually exist yet
-                    Ja = calc_full_ras_index(d1_a, d2_a, d3_a, ras1, ras2, ras3)
-                    sgn_c, config_c = apply_creation(tmp_b, p)
-                    d1_c, d2_c, d3_c = breakup_config(config_c, ras1, ras2, ras3)
-                    Jb = calc_full_ras_index(d1_c, d2_c, d3_c, ras1, ras2, ras3)
-                    w[new_block][Ja, Jb, :] .+= sgnK*sgn_a*sgn_c*v2.data[block1][Ia, Ib, :]
+        #loop over alpha strings
+        idxa = 0
+        det3a = SubspaceDeterminantString(ansatz.ras_spaces[3], block1.focka[3])
+        for na in 1:det3a.max
+            det2a = SubspaceDeterminantString(ansatz.ras_spaces[2], block1.focka[2])
+            for ja in 1:det2a.max
+                det1a = SubspaceDeterminantString(ansatz.ras_spaces[1], block1.focka[1])
+                for ia in 1:det1a.max
+                    idxa += 1
+                    aconfig = [det1a.config;det2a.config.+det1a.no;det3a.config.+det1a.no.+det2a.no]
+
+                    #now beta strings
+                    idxb=0
+                    det3b = SubspaceDeterminantString(ansatz.ras_spaces[3], block1.fockb[3])
+                    for n in 1:det3b.max
+                        det2b = SubspaceDeterminantString(ansatz.ras_spaces[2], block1.fockb[2])
+                        for j in 1:det2b.max
+                            det1b = SubspaceDeterminantString(ansatz.ras_spaces[1], block1.fockb[1])
+                            for i in 1:det1b.max
+                                idxb += 1
+                                bconfig = [det1b.config;det2b.config.+det1b.no;det3b.config.+det1b.no.+det2b.no]
+                                for (p_range, delta_c) in create_list
+                                    for (q_range, delta_a) in ann_list
+                                        block2 = RasBlock(block1.focka.+delta_a, block1.fockb.+delta_c)
+                                        haskey(w, block2) || continue
+                                        for q in q_range
+                                            tmp = deepcopy(aconfig)
+                                            if q in tmp
+                                                sgn_q, det_a = apply_annihilation(tmp, q)
+                                                sgn_q != 0 || continue
+                                                d1_a, d2_a, d3_a = breakup_config(det_a, ras1, ras2, ras3)
+                                                det1_q = SubspaceDeterminantString(length(ras1), length(d1_a), d1_a)
+                                                det2_q = SubspaceDeterminantString(length(ras2), length(d2_a), d2_a.-length(ras1))
+                                                det3_q = SubspaceDeterminantString(length(ras3), length(d3_a), d3_a.-length(ras1).-length(ras2))
+
+                                                idxa_new = calc_full_ras_index(det1_q, det2_q, det3_q)
+                                                for p in p_range
+                                                    p == q || continue
+                                                    tmp2 = deepcopy(bconfig)
+                                                    if p in tmp2
+                                                        continue
+                                                    else
+                                                        d1_c, d2_c, d3_c = breakup_config(tmp2, ras1, ras2, ras3)
+                                                        sgn_p, idxb_new = apply_creation!(d1_c, d2_c, d3_c, ras1, ras2, ras3, p)
+                                                        sgn_p != 0 || continue
+
+                                                        w[block2][idxa_new, idxb_new,:] .+= sgnK*sgn_q*sgn_p*vec[idxa,idxb,:]
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                                incr!(det1b)
+                            end
+                            incr!(det2b)
+                        end
+                        incr!(det3b)
+                    end
+                    incr!(det1a)
                 end
+                incr!(det2a)
             end
+            incr!(det3a)
         end
     end
-    
+
     starti = 1
     w2 = zeros(Float64, bra_ansatz.dim, nroots)
-    for (block, vec) in v2.data
+    for (block, vec) in w
         tmp = reshape(vec, (size(vec,1)*size(vec,2), nroots))
         w2[starti:starti+(size(vec,1)*size(vec,2))-1, :] .= tmp
         starti += (size(vec,1)*size(vec,2))
@@ -266,7 +359,7 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz_2)
         end
     end
 
-    return wout#=}}}=#
+    return wout, bra_ansatz#=}}}=#
 end
 
 """
@@ -280,6 +373,7 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz_2)
     # = c(IJ,s)c(KL,t) <I|a'|K><J|b|L> (-1)^ket_a.ne
 
     nroots = size(v,2)
+    v2 = RASVector(v, ansatz)
     
     if ansatz.na + 1 > ansatz.no
         error(" Can't increase Ms further")
@@ -289,67 +383,97 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz_2)
     if ansatz.na % 2 != 0 
         sgnK = -sgnK
     end
+    
+    bra_ansatz = RASCIAnsatz_2(ansatz.no, ansatz.na+1, ansatz.nb-1, ansatz.ras_spaces, h=ansatz.max_h, p=ansatz.max_p)
+    wtmp = RASVector(zeros(bra_ansatz.dim, nroots), bra_ansatz)
+    w = initalize_sig(wtmp)
+    
+    create_list = make_excitation_classes_c(ansatz.ras_spaces)
+    ann_list = make_excitation_classes_a(ansatz.ras_spaces)
+    ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI_2.make_ras_spaces(ansatz.ras_spaces)
+    #note ras1 is same as ras1_bra so do not need to compute them
+    
+    for (block1, vec) in v2.data
+        #loop over alpha strings
+        idxa = 0
+        det3a = SubspaceDeterminantString(ansatz.ras_spaces[3], block1.focka[3])
+        for na in 1:det3a.max
+            det2a = SubspaceDeterminantString(ansatz.ras_spaces[2], block1.focka[2])
+            for ja in 1:det2a.max
+                det1a = SubspaceDeterminantString(ansatz.ras_spaces[1], block1.focka[1])
+                for ia in 1:det1a.max
+                    idxa += 1
+                    aconfig = [det1a.config;det2a.config.+det1a.no;det3a.config.+det1a.no.+det2a.no]
 
-    bra_ansatz = RASCIAnsatz(ansatz.no, ansatz.na+1, ansatz.nb-1, ansatz.ras_spaces,  max_h=ansatz.max_h, max_p=ansatz.max_p)
-    
-    cats_a_bra, cats_a = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra_ansatz, ansatz, spin="alpha", type="c")
-    cats_b_bra, cats_b = ActiveSpaceSolvers.RASCI.fill_lu_HP(bra_ansatz, ansatz, spin="beta", type="a")
-    spin_pairs = ActiveSpaceSolvers.RASCI.make_spin_pairs(ansatz, cats_a, cats_b)
-    spin_pairs_bra = ActiveSpaceSolvers.RASCI.make_spin_pairs(bra_ansatz, cats_a_bra, cats_b_bra)
-    
-    v2 = Dict{Int, Array{Float64, 3}}()
-    start = 1
-    for m in 1:length(spin_pairs)
-        tmp = v[start:start+spin_pairs[m].dim-1, :]
-        v2[m] = reshape(tmp, (length(cats_a[spin_pairs[m].pair[1]].idxs), length(cats_b[spin_pairs[m].pair[2]].idxs), nroots))
-        start += spin_pairs[m].dim
-    end
-    
-    w = Dict{Int, Array{Float64, 3}}()
-    for m in 1:length(spin_pairs_bra)
-        w[m] = zeros(length(cats_a_bra[spin_pairs_bra[m].pair[1]].idxs), length(cats_b_bra[spin_pairs_bra[m].pair[2]].idxs), nroots)
-    end
-    
-    for m in 1:length(spin_pairs)
-        cat_Ia = cats_a[spin_pairs[m].pair[1]]
-        cat_Ib = cats_b[spin_pairs[m].pair[2]]
-        for Ib in cats_b[spin_pairs[m].pair[2]].idxs
-            Ib_local = Ib-cat_Ib.shift
-            for Ia in cats_a[spin_pairs[m].pair[1]].idxs
-                Ia_local = Ia-cat_Ia.shift
-                for p in 1:ansatz.no
-                    Ja = cat_Ia.lookup[p,Ia_local]
-                    Ja != 0 || continue
-                    Ja_sign = sign(Ja)
-                    Ja = abs(Ja)
-                    cata_Ja = find_cat(Ja, cats_a_bra)
-                    Jb = cat_Ib.lookup[p,Ib_local]
-                    Jb != 0 || continue
-                    Jb_sign = sign(Jb)
-                    Jb = abs(Jb)
-                    catb_Jb = find_cat(Jb, cats_b_bra)
-                    n = find_spin_pair(spin_pairs_bra, (cata_Ja.idx, catb_Jb.idx))
-                    n != 0 || continue
-                    Ja_local = Ja-cata_Ja.shift
-                    Jb_local = Jb-catb_Jb.shift
-                    w[n][Ja_local, Jb_local, :] .+= sgnK*Ja_sign*Jb_sign*v2[m][Ia_local, Ib_local, :]
+                    #now beta strings
+                    idxb=0
+                    det3b = SubspaceDeterminantString(ansatz.ras_spaces[3], block1.fockb[3])
+                    for n in 1:det3b.max
+                        det2b = SubspaceDeterminantString(ansatz.ras_spaces[2], block1.fockb[2])
+                        for j in 1:det2b.max
+                            det1b = SubspaceDeterminantString(ansatz.ras_spaces[1], block1.fockb[1])
+                            for i in 1:det1b.max
+                                idxb += 1
+                                bconfig = [det1b.config;det2b.config.+det1b.no;det3b.config.+det1b.no.+det2b.no]
+                                for (p_range, delta_c) in create_list
+                                    for (q_range, delta_a) in ann_list
+                                        block2 = RasBlock(block1.focka.+delta_c, block1.fockb.+delta_a)
+                                        haskey(w, block2) || continue
+                                        for q in q_range
+                                            tmp = deepcopy(bconfig)
+                                            if q in tmp
+                                                sgn_q, det_a = apply_annihilation(tmp, q)
+                                                sgn_q != 0 || continue
+                                                d1_a, d2_a, d3_a = breakup_config(det_a, ras1, ras2, ras3)
+                                                det1_q = SubspaceDeterminantString(length(ras1), length(d1_a), d1_a)
+                                                det2_q = SubspaceDeterminantString(length(ras2), length(d2_a), d2_a.-length(ras1))
+                                                det3_q = SubspaceDeterminantString(length(ras3), length(d3_a), d3_a.-length(ras1).-length(ras2))
+
+                                                idxb_new = calc_full_ras_index(det1_q, det2_q, det3_q)
+                                                for p in p_range
+                                                    p == q || continue
+                                                    tmp2 = deepcopy(aconfig)
+                                                    if p in tmp2
+                                                        continue
+                                                    else
+                                                        d1_c, d2_c, d3_c = breakup_config(tmp2, ras1, ras2, ras3)
+                                                        sgn_p, idxa_new = apply_creation!(d1_c, d2_c, d3_c, ras1, ras2, ras3, p)
+                                                        sgn_p != 0 || continue
+
+                                                        w[block2][idxa_new, idxb_new,:] .+= sgnK*sgn_q*sgn_p*vec[idxa,idxb,:]
+                                                    end
+                                                end
+                                            end
+                                        end
+                                    end
+                                end
+                                incr!(det1b)
+                            end
+                            incr!(det2b)
+                        end
+                        incr!(det3b)
+                    end
+                    incr!(det1a)
                 end
+                incr!(det2a)
             end
+            incr!(det3a)
         end
     end
-    
+
     starti = 1
     w2 = zeros(Float64, bra_ansatz.dim, nroots)
-    for m in 1:length(spin_pairs_bra)
-        tmp = reshape(w[m], (size(w[m],1)*size(w[m],2), nroots))
-        w2[starti:starti+spin_pairs_bra[m].dim-1, :] .= tmp
-        starti += spin_pairs_bra[m].dim
+    for (block, vec) in w
+        tmp = reshape(vec, (size(vec,1)*size(vec,2), nroots))
+        w2[starti:starti+(size(vec,1)*size(vec,2))-1, :] .= tmp
+        starti += (size(vec,1)*size(vec,2))
     end
     
     #only keep the states that aren't zero (that weren't killed by S-)
     wout = zeros(size(w2,1),0)
     for i in 1:nroots
         ni = norm(w2[:,i])
+        display(ni)
         if isapprox(ni, 0, atol=1e-4) == false
             wout = hcat(wout, w2[:,i]./ni)
         end
