@@ -36,6 +36,7 @@ function RASVector(v, prob::RASCIAnsatz_2)
     nroots = size(v, 2)
     
     start = 1
+
     for i in 1:length(a_blocks)
         dima = binomial(prob.ras_spaces[1], fock_as[i][1])*binomial(prob.ras_spaces[2], fock_as[i][2])*binomial(prob.ras_spaces[3], fock_as[i][3])
         for j in 1:length(b_blocks)
@@ -50,7 +51,7 @@ function RASVector(v, prob::RASCIAnsatz_2)
         end
     end
     
-    if prob.max_h2 != 0 || prob.max_p2 != 0
+    if prob.max_h2 != 0 && prob.max_p2 != 0 || prob.max_h2==0 && prob.max_p2 != 0 || prob.max_h2 !=0 && prob.max_p2 == 0
         a_blocks2, fock_as2 = make_blocks(prob.ras_spaces, prob.na, prob.max_h2, prob.max_p2)
         b_blocks2, fock_bs2 = make_blocks(prob.ras_spaces, prob.nb, prob.max_h2, prob.max_p2)
         for i in 1:length(a_blocks2)
@@ -60,8 +61,12 @@ function RASVector(v, prob::RASCIAnsatz_2)
                 if a_blocks2[i][1]+b_blocks2[j][1]<= prob.max_h2
                     if a_blocks2[i][2]+b_blocks2[j][2] <= prob.max_p2
                         block1 = RasBlock(fock_as2[i], fock_bs2[j])
-                        rasvec[block1] = reshape(v[start:start+dima*dimb-1, :], dima, dimb, nroots)
-                        start += dima*dimb
+                        if haskey(rasvec, block1)
+                            continue
+                        else
+                            rasvec[block1] = reshape(v[start:start+dima*dimb-1, :], dima, dimb, nroots)
+                            start += dima*dimb
+                        end
                     end
                 end
             end

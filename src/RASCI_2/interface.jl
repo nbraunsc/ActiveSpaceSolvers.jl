@@ -34,15 +34,15 @@ Constructor
 - `max_h`: Max number of holes in RAS1
 - `max_p`: Max number of particles in RAS3
 """
-function RASCIAnsatz_2(no::Int, na, nb, ras_spaces::Any; h=0, p=ras_spaces[3])
+function RASCIAnsatz_2(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces[3])
     na <= no || throw(DimensionMismatch)
     nb <= no || throw(DimensionMismatch)
     sum(ras_spaces) == no || throw(DimensionMismatch)
     ras_spaces = convert(SVector{3,Int},collect(ras_spaces))
     na = convert(Int, na)
     nb = convert(Int, nb)
-    max_h = convert(Int8, h)
-    max_p = convert(Int8, p)
+    max_h = convert(Int8, max_h)
+    max_p = convert(Int8, max_p)
     max_h2 = Int8(0)
     max_p2 = Int8(0)
     rdim = calc_rdim(ras_spaces, na, nb, max_h, max_p)
@@ -196,6 +196,7 @@ end
 function calc_rdim_ddci(ras_spaces::SVector{3, Int}, na::Int, nb::Int, max_h::Int8, max_p::Int8, max_h2::Int8, max_p2::Int8)
     a_blocks, fock_as = make_blocks(ras_spaces, na, max_h, max_p)#={{{=#
     b_blocks, fock_bs = make_blocks(ras_spaces, nb, max_h, max_p)
+    tmp = []
     
     start = 0
     for i in 1:length(a_blocks)
@@ -204,6 +205,8 @@ function calc_rdim_ddci(ras_spaces::SVector{3, Int}, na::Int, nb::Int, max_h::In
             dimb = binomial(ras_spaces[1], fock_bs[j][1])*binomial(ras_spaces[2], fock_bs[j][2])*binomial(ras_spaces[3], fock_bs[j][3])
             if a_blocks[i][1]+b_blocks[j][1]<= max_h
                 if a_blocks[i][2]+b_blocks[j][2] <= max_p
+                    block1 = RasBlock(fock_as[i], fock_bs[j])
+                    push!(tmp, block1)
                     start += dima*dimb
                 end
             end
@@ -218,7 +221,13 @@ function calc_rdim_ddci(ras_spaces::SVector{3, Int}, na::Int, nb::Int, max_h::In
             dimb = binomial(ras_spaces[1], fock_bs2[j][1])*binomial(ras_spaces[2], fock_bs2[j][2])*binomial(ras_spaces[3], fock_bs2[j][3])
             if a_blocks2[i][1]+b_blocks2[j][1]<= max_h2
                 if a_blocks2[i][2]+b_blocks2[j][2] <= max_p2
-                    start += dima*dimb
+                    block1 = RasBlock(fock_as2[i], fock_bs2[j])
+                    if block1 in tmp
+                        continue
+                    else
+                        push!(tmp, block1)
+                        start += dima*dimb
+                    end
                 end
             end
         end
