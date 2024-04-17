@@ -84,10 +84,10 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
     iters = 0
     function mymatvec(v)
         iters += 1
-        @printf(" Iter: %4i", iters)
+        #@printf(" Iter: %4i", iters)
         #print("Iter: ", iters, " ")
         #@printf(" %-50s", "Compute sigma 1: ")
-        flush(stdout)
+        #flush(stdout)
         #display(size(v))
        
         nr = 0

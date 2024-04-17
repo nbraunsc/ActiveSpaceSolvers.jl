@@ -108,10 +108,10 @@ function LinearMaps.LinearMap(ints::InCoreInts, prob::RASCIAnsatz_2) where T
         lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
 
         iters += 1
-        @printf(" Iter: %4i", iters)
+        #@printf(" Iter: %4i", iters)
         #print("Iter: ", iters, " ")
         #@printf(" %-50s", "Compute sigma 1: ")
-        flush(stdout)
+        #flush(stdout)
         #display(size(v))
        
         nr = 0
@@ -149,10 +149,10 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where 
         lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
 
         iters += 1
-        @printf(" Iter: %4i", iters)
+        #@printf(" Iter: %4i", iters)
         #print("Iter: ", iters, " ")
         #@printf(" %-50s", "Compute sigma 1: ")
-        flush(stdout)
+        #flush(stdout)
         #display(size(v))
        
         nr = 0
