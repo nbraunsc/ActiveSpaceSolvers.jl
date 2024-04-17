@@ -37,7 +37,7 @@ function compute_operator_cca_abb end
 function compute_s2 end
 function apply_sminus end
 function apply_splus end
-# analysis
+## analysis
 function svd_state end     
 # methods for getting info from Ansatze
 
@@ -67,6 +67,7 @@ export compute_operator_cca_aaa
 export compute_operator_cca_bbb      
 export compute_operator_cca_aba      
 export compute_operator_cca_abb      
+export compute_s2
 export svd_state
 export apply_sminus
 export apply_splus
@@ -75,7 +76,7 @@ export n_elec
 export n_elec_a
 export n_elec_b
 export dim
-export compute_s2 
+#export compute_s2 
 
 # include sub-modules and import/export Ansatz sub-types
 include("FCI/FCI.jl");
@@ -85,6 +86,10 @@ export FCIAnsatz
 include("RASCI/RASCI.jl");
 import .RASCI: RASCIAnsatz
 export RASCIAnsatz
+
+include("RASCI_2/RASCI_2.jl");
+import .RASCI_2: RASCIAnsatz_2
+export RASCIAnsatz_2
 
 
 # some methods
