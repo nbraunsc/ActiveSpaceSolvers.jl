@@ -45,6 +45,9 @@ function generate_cluster_fock_ansatze( ref_fock,
             elseif typeof(init_cluster_ansatz[i]) == RASCIAnsatz
                 ansatz_i = RASCIAnsatz(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p)
                 push!(sectors, ansatz_i)
+            elseif typeof(init_cluster_ansatz[i]) == RASCIAnsatz_2
+                ansatz_i = RASCIAnsatz_2(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p, max_h2=init_cluster_ansatz[i].max_h2, max_p2=init_cluster_anstaz[i].max_p2)
+                push!(sectors, ansatz_i)
             else
                 error("No ansatz defined")
             end
@@ -96,6 +99,9 @@ function generate_cluster_fock_ansatze_all( ref_fock,
                 push!(sectors, ansatz_i)
             elseif typeof(init_cluster_ansatz[i]) == RASCIAnsatz
                 ansatz_i = RASCIAnsatz(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p)
+                push!(sectors, ansatz_i)
+            elseif typeof(init_cluster_ansatz[i]) == RASCIAnsatz_2
+                ansatz_i = RASCIAnsatz_2(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p, max_h2=init_cluster_ansatz[i].max_h2, max_p2=init_cluster_anstaz[i].max_p2)
                 push!(sectors, ansatz_i)
             else
                 error("No ansatz defined")
