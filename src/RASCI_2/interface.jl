@@ -400,7 +400,7 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz_2)
         sgnK = -sgnK
     end
     
-    bra_ansatz = RASCIAnsatz_2(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.ras_spaces, max_h=ansatz.max_h, max_p=ansatz.max_p, max_h2=ansatz.max_h2, max_p2=ansatz.max_p2)
+    bra_ansatz = RASCIAnsatz_2(ansatz.no, ansatz.na+1, ansatz.nb-1, ansatz.ras_spaces, max_h=ansatz.max_h, max_p=ansatz.max_p, max_h2=ansatz.max_h2, max_p2=ansatz.max_p2)
     wtmp = RASVector(zeros(bra_ansatz.dim, nroots), bra_ansatz)
     w = initalize_sig(wtmp)
     
