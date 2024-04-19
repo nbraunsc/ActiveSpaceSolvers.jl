@@ -34,7 +34,7 @@ Constructor
 - `max_h`: Max number of holes in RAS1
 - `max_p`: Max number of particles in RAS3
 """
-function RASCIAnsatz_2(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces[3])
+function RASCIAnsatz_2(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces[3], max_h2=0, max_p2=0)
     na <= no || throw(DimensionMismatch)
     nb <= no || throw(DimensionMismatch)
     sum(ras_spaces) == no || throw(DimensionMismatch)
@@ -43,9 +43,16 @@ function RASCIAnsatz_2(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spac
     nb = convert(Int, nb)
     max_h = convert(Int8, max_h)
     max_p = convert(Int8, max_p)
-    max_h2 = Int8(0)
-    max_p2 = Int8(0)
-    rdim = calc_rdim(ras_spaces, na, nb, max_h, max_p)
+    if max_h2 == 0 && max_p2 == 0
+        max_h2=Int8(0)
+        max_p2=Int8(0)
+        rdim = calc_rdim(ras_spaces, na, nb, max_h, max_p)
+    else
+        max_h2 = convert(Int8, max_h2)
+        max_p2 = convert(Int8, max_p2)
+        rdim = calc_rdim_ddci(ras_spaces, na, nb, max_h, max_p, max_h2, max_p2)
+    end
+
     return RASCIAnsatz_2(no, na, nb, rdim, ras_spaces, max_h, max_p, max_h2, max_p2);
 end
 
