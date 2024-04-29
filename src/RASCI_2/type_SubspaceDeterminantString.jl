@@ -22,7 +22,8 @@ function calc_nchk(n::Integer,k::Integer)
     return accum
 end
 
-binom_coeff = Array{Int,2}(undef,100,100)
+binom_coeff = Array{Int,2}(undef,200,200)
+#binom_coeff = Array{Int,2}(undef,100,100)
 fill!(binom_coeff, -1)
 for i in 0:size(binom_coeff,2)-1
     for j in i:size(binom_coeff,1)-1
@@ -40,10 +41,12 @@ Looks up binomial coefficient from a precomputed table: n choose k
 end#=}}}=#
 
 function SubspaceDeterminantString(no::Int, ne::Int)
+    #return SubspaceDeterminantString(no, ne, Vector(1:ne), 1, binomial(no,ne))
     return SubspaceDeterminantString(no, ne, Vector(1:ne), 1, get_nchk(no,ne))
 end
 
 function SubspaceDeterminantString(no::Int, ne::Int, config::Vector{Int})
+    #return SubspaceDeterminantString(no, ne, config, calc_linear_index!(no, ne, config), binomial(no,ne))
     return SubspaceDeterminantString(no, ne, config, calc_linear_index!(no, ne, config), get_nchk(no,ne))
 end
 
@@ -100,6 +103,7 @@ function calc_linear_index!(no::Int, ne::Int, config::Vector{Int})
     for i::Int in 1:ne
         v = config[i]
         for j::Int in v_prev+1:v-1
+            #lin_index += binomial(no-j,ne-i)
             lin_index += binom_coeff[no-j+1,ne-i+1]
         end
         v_prev = v
@@ -124,7 +128,7 @@ function calc_linear_index!(c::SubspaceDeterminantString)
         for j::Int in v_prev+1:v-1
             c.lin_index += binom_coeff[c.no-j+1,c.ne-i+1]
             #@btime $c.lin_index += $binom_coeff[$c.no-$j+1,$c.ne-$i+1]
-            #c.lin_index += get_nchk(c.no-j,c.ne-i)
+            #c.lin_index += binomial(c.no-j,c.ne-i)
         end
         v_prev = v
     end

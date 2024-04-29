@@ -116,7 +116,7 @@ function LinearMaps.LinearMap(ints::InCoreInts, prob::RASCIAnsatz_2) where T
 
         iters += 1
         #@printf(" Iter: %4i", iters)
-        #print("Iter: ", iters, " ")
+        print("Iter: ", iters, " ")
         #@printf(" %-50s", "Compute sigma 1: ")
         #flush(stdout)
         #display(size(v))
@@ -158,7 +158,6 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where 
         iters += 1
         #@printf(" Iter: %4i", iters)
         #print("Iter: ", iters, " ")
-        #@printf(" %-50s", "Compute sigma 1: ")
         #flush(stdout)
         #display(size(v))
        
