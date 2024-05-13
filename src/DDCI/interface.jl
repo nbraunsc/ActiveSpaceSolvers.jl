@@ -11,46 +11,62 @@ using TimerOutputs
 
 #Optional{T} = Union{T, Nothing}
 
-struct RASCIAnsatz_2 <: Ansatz
+struct DDCIAnsatz <: Ansatz
     no::Int
     na::Int  # number of alpha
     nb::Int  # number of beta
     dim::Int
     ras_spaces::SVector{3, Int}   # Number of orbitals in each ras space (RAS1, RAS2, RAS3)
-    max_h::Int8  #max number of holes in ras1 (GLOBAL, Slater Det)
-    max_p::Int8 #max number of particles in ras3 (GLOBAL, Slater Det)
+    ex_level::Int
 end
 
 """
-    RASCIAnsatz_2(no, na, nb, ras_spaces::Any, max_h, max_p)
+    DDCI(no, na, nb, ras_spaces::Any, ex_level)
 Constructor
 # Arguments
 - `no`: Number of spatial orbitals
 - `na`: Number of α electrons
 - `nb`: Number of β electrons
 - `ras_spaces`: Number of orbitals in each (RAS1, RAS2, RAS3)
-- `max_h`: Max number of holes in RAS1
-- `max_p`: Max number of particles in RAS3
+- `ex_level`: DDCI excitation level (1,2,or 3)
 """
-function RASCIAnsatz_2(no::Int, na, nb, ras_spaces::Any; max_h=0, max_p=ras_spaces[3])
+function Base.display(p::DDCIAnsatz)
+    @printf(" DDCI:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i DDCI_EX_Level: %-2i \n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3],p.dim, p.ex_level)
+end
+
+function DDCIAnsatz(no::Int, na, nb, ras_spaces::Any; ex_level=1)
     na <= no || throw(DimensionMismatch)
     nb <= no || throw(DimensionMismatch)
     sum(ras_spaces) == no || throw(DimensionMismatch)
     ras_spaces = convert(SVector{3,Int},collect(ras_spaces))
     na = convert(Int, na)
     nb = convert(Int, nb)
-    max_h = convert(Int8, max_h)
-    max_p = convert(Int8, max_p)
-    rdim = calc_rdim(ras_spaces, na, nb, max_h, max_p)
-    return RASCIAnsatz_2(no, na, nb, rdim, ras_spaces, max_h, max_p);
-end
+    if ex_level==1
+        h = Int8(1)
+        p = Int8(0)
+        h2 = Int8(0)
+        p2 = Int8(1)
+        rdim = calc_rdim_ddci(ras_spaces, na, nb, h, p, h2, p2)
+        return DDCIAnsatz(no, na, nb, rdim, ras_spaces, ex_level);
+    
+    elseif ex_level==2
+        h = Int8(2)
+        p = Int8(0)
+        h2 = Int8(0)
+        p2 = Int8(2)
+        h3 = Int8(1)
+        p3 = Int8(1)
+        rdim = calc_rdim_ddci(ras_spaces, na, nb, h, p, h2, p2, h3, p3)
+        return DDCIAnsatz(no, na, nb, rdim, ras_spaces, ex_level);
 
-function Base.display(p::RASCIAnsatz_2)
-    @printf(" RASCI_2:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i MAX Holes: %i MAX Particles: %i \n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim, p.max_h, p.max_p)
-end
-
-function Base.print(p::RASCIAnsatz_2)
-    @printf(" RASCIAnsatz_2:: #Orbs = %-3i #α = %-2i #β = %-2i Fock Spaces: (%i, %i, %i) RASCI Dimension: %-3i MAX Holes: %i MAX Particles: %i\n",p.no,p.na,p.nb,p.ras_spaces[1], p.ras_spaces[2], p.ras_spaces[3], p.dim, p.max_h, p.max_p)
+    elseif ex_level==3
+        h = Int8(2)
+        p = Int8(1)
+        h2 = Int8(1)
+        p2 = Int8(2)
+        rdim = calc_rdim_ddci(ras_spaces, na, nb, h, p, h2, p2)
+        return DDCIAnsatz(no, na, nb, rdim, ras_spaces, ex_level);
+    end
 end
 
 """
@@ -62,11 +78,13 @@ Get LinearMap with takes a vector and returns action of H on that vector
 - ints: `InCoreInts` object
 - prb:  `RASCIAnsatz` object
 """
-function LinearMaps.LinearMap(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where {T}
+function LinearMaps.LinearMap(ints::InCoreInts{T}, prob::DDCIAnsatz) where {T}
     iters = 0
     function mymatvec(v)
         rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(v, prob)
         lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
+        next_ddci,h,p = find_full_ddci(prob)
+        lu2 = fill_lu_ddci(next_ddci, h, p, size(v,2), prob.ras_spaces)
 
         iters += 1
         #@printf(" Iter: %4i", iters)
@@ -82,8 +100,8 @@ function LinearMaps.LinearMap(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where {T
             nr = size(v)[2]
         end
         
-        sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
-        sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
+        sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu2)
+        sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu2)
         sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
         
         sig = sigma1 + sigma2 + sigma3
@@ -102,12 +120,14 @@ Get LinearMap with takes a vector and returns action of H on that vector
 - ints: `InCoreInts` object
 - prb:  `A` object
 """
-function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where T
+function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::DDCIAnsatz) where {T}
 
     iters = 0
     function mymatvec(v)
         rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(v, prob)
         lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
+        next_ddci,h,p = find_full_ddci(prob)
+        lu2 = fill_lu_ddci(next_ddci, h, p, size(v,2), prob.ras_spaces)
 
         iters += 1
         #@printf(" Iter: %4i", iters)
@@ -122,8 +142,8 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where 
             nr = size(v)[2]
         end
         
-        sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
-        sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
+        sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu2)
+        sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu2)
         sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
         
         sig = sigma1 + sigma2 + sigma3
@@ -134,18 +154,41 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where 
     return LinOpMat{T}(mymatvec, prob.dim, true)
 end
 
-function calc_rdim(ras_spaces::SVector{3, Int}, na::Int, nb::Int, max_h::Int8, max_p::Int8)
-    a_blocks, fock_as = make_blocks(ras_spaces, na, max_h, max_p)#={{{=#
-    b_blocks, fock_bs = make_blocks(ras_spaces, nb, max_h, max_p)
+function calc_rdim_ddci(ras_spaces::SVector{3, Int}, na::Int, nb::Int, h::Int8, p::Int8, h2::Int8, p2::Int8)
+    a_blocks, fock_as = ActiveSpaceSolvers.RASCI_2.make_blocks(ras_spaces, na, h, p)#={{{=#
+    b_blocks, fock_bs = ActiveSpaceSolvers.RASCI_2.make_blocks(ras_spaces, nb, h, p)
+    tmp = []
     
     start = 0
     for i in 1:length(a_blocks)
         dima = binomial(ras_spaces[1], fock_as[i][1])*binomial(ras_spaces[2], fock_as[i][2])*binomial(ras_spaces[3], fock_as[i][3])
         for j in 1:length(b_blocks)
             dimb = binomial(ras_spaces[1], fock_bs[j][1])*binomial(ras_spaces[2], fock_bs[j][2])*binomial(ras_spaces[3], fock_bs[j][3])
-            if a_blocks[i][1]+b_blocks[j][1]<= max_h
-                if a_blocks[i][2]+b_blocks[j][2] <= max_p
+            if a_blocks[i][1]+b_blocks[j][1]<= h
+                if a_blocks[i][2]+b_blocks[j][2] <= p
+                    block1 = ActiveSpaceSolvers.RASCI_2.RasBlock(fock_as[i], fock_bs[j])
+                    push!(tmp, block1)
                     start += dima*dimb
+                end
+            end
+        end
+    end
+    
+    a_blocks2, fock_as2 = ActiveSpaceSolvers.RASCI_2.make_blocks(ras_spaces, na, h2, p2)
+    b_blocks2, fock_bs2 = ActiveSpaceSolvers.RASCI_2.make_blocks(ras_spaces, nb, h2, p2)
+    for i in 1:length(a_blocks2)
+        dima = binomial(ras_spaces[1], fock_as2[i][1])*binomial(ras_spaces[2], fock_as2[i][2])*binomial(ras_spaces[3], fock_as2[i][3])
+        for j in 1:length(b_blocks2)
+            dimb = binomial(ras_spaces[1], fock_bs2[j][1])*binomial(ras_spaces[2], fock_bs2[j][2])*binomial(ras_spaces[3], fock_bs2[j][3])
+            if a_blocks2[i][1]+b_blocks2[j][1]<= h2
+                if a_blocks2[i][2]+b_blocks2[j][2] <= p2
+                    block1 = ActiveSpaceSolvers.RASCI_2.RasBlock(fock_as2[i], fock_bs2[j])
+                    if block1 in tmp
+                        continue
+                    else
+                        push!(tmp, block1)
+                        start += dima*dimb
+                    end
                 end
             end
         end
@@ -153,27 +196,89 @@ function calc_rdim(ras_spaces::SVector{3, Int}, na::Int, nb::Int, max_h::Int8, m
     return start
 end
 
-"""
-    ActiveSpaceSolvers.compute_s2(sol::Solution)
-
-Compute the <S^2> expectation values for each state in `sol`
-"""
-function ActiveSpaceSolvers.compute_s2(sol::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return compute_S2_expval(sol.vectors, sol.ansatz)
+function calc_rdim_ddci(ras_spaces::SVector{3, Int}, na::Int, nb::Int, h::Int8, p::Int8, h2::Int8, p2::Int8, h3::Int8, p3::Int8)
+    a_blocks, fock_as = ActiveSpaceSolvers.RASCI_2.make_blocks(ras_spaces, na, h, p)#={{{=#
+    b_blocks, fock_bs = ActiveSpaceSolvers.RASCI_2.make_blocks(ras_spaces, nb, h, p)
+    tmp = []
+    
+    start = 0
+    for i in 1:length(a_blocks)
+        dima = binomial(ras_spaces[1], fock_as[i][1])*binomial(ras_spaces[2], fock_as[i][2])*binomial(ras_spaces[3], fock_as[i][3])
+        for j in 1:length(b_blocks)
+            dimb = binomial(ras_spaces[1], fock_bs[j][1])*binomial(ras_spaces[2], fock_bs[j][2])*binomial(ras_spaces[3], fock_bs[j][3])
+            if a_blocks[i][1]+b_blocks[j][1]<= h
+                if a_blocks[i][2]+b_blocks[j][2] <= p
+                    block1 = ActiveSpaceSolvers.RASCI_2.RasBlock(fock_as[i], fock_bs[j])
+                    push!(tmp, block1)
+                    start += dima*dimb
+                end
+            end
+        end
+    end
+    
+    a_blocks2, fock_as2 = ActiveSpaceSolvers.RASCI_2.make_blocks(ras_spaces, na, h2, p2)
+    b_blocks2, fock_bs2 = ActiveSpaceSolvers.RASCI_2.make_blocks(ras_spaces, nb, h2, p2)
+    for i in 1:length(a_blocks2)
+        dima = binomial(ras_spaces[1], fock_as2[i][1])*binomial(ras_spaces[2], fock_as2[i][2])*binomial(ras_spaces[3], fock_as2[i][3])
+        for j in 1:length(b_blocks2)
+            dimb = binomial(ras_spaces[1], fock_bs2[j][1])*binomial(ras_spaces[2], fock_bs2[j][2])*binomial(ras_spaces[3], fock_bs2[j][3])
+            if a_blocks2[i][1]+b_blocks2[j][1]<= h2
+                if a_blocks2[i][2]+b_blocks2[j][2] <= p2
+                    block1 = ActiveSpaceSolvers.RASCI_2.RasBlock(fock_as2[i], fock_bs2[j])
+                    if block1 in tmp
+                        continue
+                    else
+                        push!(tmp, block1)
+                        start += dima*dimb
+                    end
+                end
+            end
+        end
+    end
+    
+    a_blocks2, fock_as2 = ActiveSpaceSolvers.RASCI_2.make_blocks(ras_spaces, na, h3, p3)
+    b_blocks2, fock_bs2 = ActiveSpaceSolvers.RASCI_2.make_blocks(ras_spaces, nb, h3, p3)
+    for i in 1:length(a_blocks2)
+        dima = binomial(ras_spaces[1], fock_as2[i][1])*binomial(ras_spaces[2], fock_as2[i][2])*binomial(ras_spaces[3], fock_as2[i][3])
+        for j in 1:length(b_blocks2)
+            dimb = binomial(ras_spaces[1], fock_bs2[j][1])*binomial(ras_spaces[2], fock_bs2[j][2])*binomial(ras_spaces[3], fock_bs2[j][3])
+            if a_blocks2[i][1]+b_blocks2[j][1]<= h3
+                if a_blocks2[i][2]+b_blocks2[j][2] <= p3
+                    block1 = ActiveSpaceSolvers.RASCI_2.RasBlock(fock_as2[i], fock_bs2[j])
+                    if block1 in tmp
+                        continue
+                    else
+                        push!(tmp, block1)
+                        start += dima*dimb
+                    end
+                end
+            end
+        end
+    end#=}}}=#
+    return start
 end
 
-"""
-    build_S2_matrix(P::A)
 
-Build the S2 matrix in the Slater Determinant Basis  specified by `P`
-"""
-function ActiveSpaceSolvers.apply_S2_matrix(P::A, v::AbstractArray{T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return apply_S2_matrix(P,v)
+function find_full_ddci(prob::DDCIAnsatz)
+    if prob.ex_level == 1
+        h = Int8(1)
+        p = Int8(1)
+        h2 = Int8(0)
+        p2 = Int8(0)
+        rdim = calc_rdim_ddci(prob.ras_spaces, prob.na, prob.nb, h, p, h2, p2)
+        return DDCIAnsatz(prob.no, prob.na, prob.nb, rdim, prob.ras_spaces, 10), h, p
+    elseif prob.ex_level ==2 || prob.ex_level==3
+        h = Int8(2)
+        p = Int8(2)
+        h2 = Int8(0)
+        p2 = Int8(0)
+        rdim = calc_rdim_ddci(prob.ras_spaces, prob.na, prob.nb, h, p, h2, p2)
+        return DDCIAnsatz(prob.no, prob.na, prob.nb, rdim, prob.ras_spaces, 20), h, p
+    end
 end
+    
 
-"""
-"""
-function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz_2)
+function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::DDCIAnsatz)
     if ansatz.nb + 1 > ansatz.no#={{{=#
         error(" Can't decrease Ms further")
     end
@@ -192,7 +297,7 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::RASCIAnsatz_2)
         sgnK = -sgnK
     end
 
-    bra_ansatz = RASCIAnsatz_2(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.ras_spaces, max_h=ansatz.max_h, max_p=ansatz.max_p, max_h2=ansatz.max_h2, max_p2=ansatz.max_p2)
+    bra_ansatz = DDCI(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.ras_spaces, ex_level=ansatz.ex_level)
     wtmp = RASVector(zeros(bra_ansatz.dim, nroots), bra_ansatz)
     w = initalize_sig(wtmp)
     
@@ -291,7 +396,7 @@ end
 
 """
 """
-function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz_2)
+function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::DDCIAnsatz)
 
     # Sp = a'b{{{
     # = c(IJ,s) <IJ|a'b|KL> c(KL,t)
@@ -311,7 +416,7 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::RASCIAnsatz_2)
         sgnK = -sgnK
     end
     
-    bra_ansatz = RASCIAnsatz_2(ansatz.no, ansatz.na+1, ansatz.nb-1, ansatz.ras_spaces, max_h=ansatz.max_h, max_p=ansatz.max_p, max_h2=ansatz.max_h2, max_p2=ansatz.max_p2)
+    bra_ansatz = DDCI(ansatz.no, ansatz.na+1, ansatz.nb-1, ansatz.ras_spaces, ex_level=ansatz.ex_level)
     wtmp = RASVector(zeros(bra_ansatz.dim, nroots), bra_ansatz)
     w = initalize_sig(wtmp)
     
@@ -414,13 +519,16 @@ end
 
 Build the Hamiltonian defined by `ints` in the Slater Determinant Basis  specified by `P`
 """
-function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts, prob::RASCIAnsatz_2) 
+function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts, prob::DDCIAnsatz) 
     nr = prob.dim
     v = Matrix(1.0I, nr, nr)
     rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(v, prob)
     lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
-    sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
-    sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
+    next_ddci,h,p = find_full_ddci(prob)
+    lu2 = fill_lu_ddci(next_ddci, h, p, nr, prob.ras_spaces)
+    
+    sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu2)
+    sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu2)
     sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
 
     sig = sigma1 + sigma2 + sigma3
@@ -430,207 +538,76 @@ function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts, prob::RASCIAnsatz_2
     return Hmat
 end
 
-"""
-    compute_1rdm(sol::Solution{A,T}; root=1) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-"""
-function ActiveSpaceSolvers.compute_1rdm(sol::Solution{A,T}; root=1) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_1rdm(sol.ansatz, sol.vectors[:,root])
-end
+function fill_lu_ddci(prob::DDCIAnsatz,h,p, nroots::Int, ras_spaces::SVector{3, Int})
+    #={{{=#
+    #single_excit = make_single_excit(ras_spaces)
+    a_blocks, fock_as = ActiveSpaceSolvers.RASCI_2.make_blocks(prob.ras_spaces, prob.na, h, p)#={{{=#
+    b_blocks, fock_bs = ActiveSpaceSolvers.RASCI_2.make_blocks(prob.ras_spaces, prob.nb, h, p)
+    rasvec = OrderedDict{ActiveSpaceSolvers.RASCI_2.RasBlock, Array{Float64,3}}()
+    v = zeros(Float64, prob.dim, nroots) 
+    start = 1
 
-"""
-    compute_1rdm_2rdm(sol::Solution{A,T}; root=1) where {A,T}
-"""
-function ActiveSpaceSolvers.compute_1rdm_2rdm(sol::Solution{A,T}; root=1) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_1rdm_2rdm(sol.ansatz, sol.vectors[:,root])
-end
+    for i in 1:length(a_blocks)
+        dima = binomial(prob.ras_spaces[1], fock_as[i][1])*binomial(prob.ras_spaces[2], fock_as[i][2])*binomial(prob.ras_spaces[3], fock_as[i][3])
+        for j in 1:length(b_blocks)
+            dimb = binomial(prob.ras_spaces[1], fock_bs[j][1])*binomial(prob.ras_spaces[2], fock_bs[j][2])*binomial(prob.ras_spaces[3], fock_bs[j][3])
+            if a_blocks[i][1]+b_blocks[j][1]<= h
+                if a_blocks[i][2]+b_blocks[j][2] <= p
+                    block1 = ActiveSpaceSolvers.RASCI_2.RasBlock(fock_as[i], fock_bs[j])
+                    rasvec[block1] = reshape(v[start:start+dima*dimb-1, :], dima, dimb, nroots)
+                    start += dima*dimb
+                end
+            end
+        end
+    end
 
-"""
-    compute_operator_c_a(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
+    ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI_2.make_ras_spaces(ras_spaces)
+    norbs = sum(ras_spaces)
+    lookup = ActiveSpaceSolvers.RASCI_2.initalize_lu(ActiveSpaceSolvers.RASCI_2.RASVector(rasvec), norbs)
+   
+    #general lu table
+    for (fock1, lu_data) in lookup
+        idx = 0
+        det3 = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ras_spaces[3], fock1[3])
+        for n in 1:det3.max
+            det2 = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ras_spaces[2], fock1[2])
+            for j in 1:det2.max
+                det1 = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ras_spaces[1], fock1[1])
+                for i in 1:det1.max
+                    idx += 1
+                    config = [det1.config;det2.config.+det1.no;det3.config.+det1.no.+det2.no]
 
-Compute representation of a operator between states `bra_v` and `ket_v` for alpha
-# Arguments
-- `bra`: solutions for the left hand side
-- `ket`: solutions for the right hand side
+                    for k in config
+                        tmp = deepcopy(config)
+                        sgn_a, deta = ActiveSpaceSolvers.RASCI_2.apply_annihilation(tmp, k)
 
-"""
-function ActiveSpaceSolvers.compute_operator_c_a(bra::Solution{A,T}, 
-                                                 ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_operator_c_a(bra::Solution{A}, ket::Solution{A})
-end
+                        for l in 1:sum(ras_spaces)
+                            tmp2 = deepcopy(deta)
+                            if l in tmp2
+                                continue
+                            end
 
-"""
-    compute_operator_a_b(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
+                            sgn_c, detc = ActiveSpaceSolvers.RASCI_2.apply_creation(tmp2, l)
+                            #sgn_c != 0 || continue
+                            delta_kl = ActiveSpaceSolvers.RASCI_2.get_fock_delta(k, l, ras_spaces)
+                            haskey(lookup, fock1.+delta_kl) || continue
+                            
+                            d1, d2, d3 = ActiveSpaceSolvers.RASCI_2.breakup_config(detc, ras1, ras2, ras3)
 
-Compute representation of a operator between states `bra_v` and `ket_v` for beta 
-# Arguments
-- `bra`: solutions for the left hand side
-- `ket`: solutions for the right hand side
-
-"""
-function ActiveSpaceSolvers.compute_operator_c_b(bra::Solution{A,T}, 
-                                                 ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_operator_c_b(bra::Solution{A}, 
-                                                 ket::Solution{A})
-end
-
-"""
-    compute_operator_ca_aa(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-
-Compute representation of a'a operators between states `bra_v` and `ket_v` for alpha-alpha
-# Arguments
-- `bra`: solutions for the left hand side
-- `ket`: solutions for the right hand side
-
-"""
-function ActiveSpaceSolvers.compute_operator_ca_aa(bra::Solution{A,T}, 
-                                                   ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_operator_ca_aa(bra::Solution{A}, 
-                                                 ket::Solution{A})
-end
-
-"""
-    compute_operator_ca_bb(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-
-Compute representation of a'a operators between states `bra_v` and `ket_v` for beta-beta 
-# Arguments
-- `bra`: solutions for the left hand side
-- `ket`: solutions for the right hand side
-
-"""
-function ActiveSpaceSolvers.compute_operator_ca_bb(bra::Solution{A,T}, 
-                                                   ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_operator_ca_bb(bra::Solution{A}, 
-                                                 ket::Solution{A})
-end
-
-
-"""
-    compute_operator_ca_ab(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-
-Compute representation of a'a operators between states `bra_v` and `ket_v` for alpha-beta 
-# Arguments
-- `bra`: solutions for the left hand side
-- `ket`: solutions for the right hand side
-
-"""
-function ActiveSpaceSolvers.compute_operator_ca_ab(bra::Solution{A,T}, 
-                                                   ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_operator_ca_ab(bra::Solution{A}, 
-                                                           ket::Solution{A})
-end
-
-
-"""
-    compute_operator_cc_aa(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-
-Compute representation of a'a' operators between states `bra_v` and `ket_v` for beta-beta 
-# Arguments
-- `bra`: solutions for the left hand side
-- `ket`: solutions for the right hand side
-
-"""
-function ActiveSpaceSolvers.compute_operator_cc_bb(bra::Solution{A,T}, 
-                                                   ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_operator_cc_bb(bra::Solution{A}, 
-                                                 ket::Solution{A})
-end
-
-
-"""
-    compute_operator_cc_aa(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-
-Compute representation of a'a' operators between states `bra_v` and `ket_v` for alpha-alpha 
-# Arguments
-- `bra`: solutions for the left hand side
-- `ket`: solutions for the right hand side
-
-"""
-function ActiveSpaceSolvers.compute_operator_cc_aa(bra::Solution{A,T}, 
-                                                   ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_operator_cc_aa(bra::Solution{A}, 
-                                                 ket::Solution{A})
-end
-
-
-"""
-    compute_operator_cc_ab(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-
-Compute representation of a'a' operators between states `bra_v` and `ket_v` for alpha-beta 
-# Arguments
-- `bra`: solutions for the left hand side
-- `ket`: solutions for the right hand side
-
-"""
-function ActiveSpaceSolvers.compute_operator_cc_ab(bra::Solution{A,T}, 
-                                                   ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_operator_cc_ab(bra::Solution{A}, 
-                                                 ket::Solution{A})
-end
-
-
-"""
-    compute_operator_cca_aaa(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-
-Compute representation of a'a'a operators between states `bra_v` and `ket_v` for alpha-alpha-alpha 
-# Arguments
-- `bra`: solutions for the left hand side
-- `ket`: solutions for the right hand side
-
-"""
-function ActiveSpaceSolvers.compute_operator_cca_aaa(bra::Solution{A,T}, 
-                                                   ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_operator_cca_aaa(bra::Solution{A}, 
-                                                 ket::Solution{A})
-end
-
-
-"""
-    compute_operator_cca_bbb(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-
-Compute representation of a'a'a operators between states `bra_v` and `ket_v` for beta-beta-beta 
-# Arguments
-- `bra`: solutions for the left hand side
-- `ket`: solutions for the right hand side
-
-"""
-function ActiveSpaceSolvers.compute_operator_cca_bbb(bra::Solution{A,T}, 
-                                                   ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_operator_cca_bbb(bra::Solution{A}, 
-                                                 ket::Solution{A})
-end
-
-
-"""
-    compute_operator_cca_aba(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-
-Compute representation of a'a'a operators between states `bra_v` and `ket_v` for alpha-beta-alpha 
-# Arguments
-- `bra`: solutions for the left hand side
-- `ket`: solutions for the right hand side
-
-"""
-function ActiveSpaceSolvers.compute_operator_cca_aba(bra::Solution{A,T}, 
-                                                     ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_operator_cca_aba(bra::Solution{A}, 
-                                                             ket::Solution{A})
-end
-
-
-"""
-    compute_operator_cca_abb(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-
-Compute representation of a'a'a operators between states `bra_v` and `ket_v` for alpha-beta-beta 
-# Arguments
-- `bra`: solutions for the left hand side
-- `ket`: solutions for the right hand side
-
-"""
-function ActiveSpaceSolvers.compute_operator_cca_abb(bra::Solution{A,T}, 
-                                                     ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_operator_cca_abb(bra::Solution{A}, 
-                                                 ket::Solution{A}) 
-end
-
-
-    
-
+                            det1_c = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(length(ras1), length(d1), d1)
+                            det2_c = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(length(ras2), length(d2), d2.-length(ras1))
+                            det3_c = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(length(ras3), length(d3), d3.-length(ras1).-length(ras2))
+                            idx_new = ActiveSpaceSolvers.RASCI_2.calc_full_ras_index(det1_c, det2_c, det3_c)
+                            
+                            lookup[fock1][k, l, idx] = sgn_a*sgn_c*idx_new
+                        end
+                    end
+                    ActiveSpaceSolvers.RASCI_2.incr!(det1)
+                end
+                ActiveSpaceSolvers.RASCI_2.incr!(det2)
+            end
+            ActiveSpaceSolvers.RASCI_2.incr!(det3)
+        end
+    end
+    return lookup
+end#=}}}=#

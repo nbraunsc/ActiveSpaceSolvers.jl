@@ -19,6 +19,7 @@ import LinearMaps: LinearMap
 # Exports
 export RASCIAnsatz_2
 export RASVector
+export RasBlock
 export LinearMap 
 
 end

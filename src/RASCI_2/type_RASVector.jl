@@ -17,7 +17,7 @@ end
 """
     RASVector(ras_spaces::Vector{Int, Int, Int, Int}, na, nb, no, max_h, max_p, max_h2, max_p2)
 
-Constructor to create RASCI Vector that allowes problems like DDCI where you want multiple cases of holes/particles
+Constructor to create RASCI Vector that allowes problems like DDCIAnsatz where you want multiple cases of holes/particles
 #Arguments
 - `ras_spaces`: vector of Ints for number of orbs in each ras subspace
 - `na` or `nb`: number of alpha or beta electrons
@@ -50,16 +50,89 @@ function RASVector(v, prob::RASCIAnsatz_2)
             end
         end
     end
+    return RASVector(rasvec)
+end#=}}}=#
+
+function RASVector(v, prob::DDCIAnsatz)
+    h=Int8(0)#={{{=#
+    p=Int8(0)
+    h2=Int8(0)
+    p2=Int8(0)
+    h3 = Int8(0)
+    p3 = Int8(0)
+    if prob.ex_level==1
+        h=Int8(1)
+        p=Int8(0)
+        h2=Int8(0)
+        p2=Int8(1)
+    elseif prob.ex_level==2
+        h=Int8(2)
+        p=Int8(0)
+        h2=Int8(0)
+        p2=Int8(2)
+        h3 = Int8(1)
+        p3 = Int8(1)
+    elseif prob.ex_level==3
+        h=Int8(2)
+        p=Int8(1)
+        h2=Int8(1)
+        p2=Int8(2)
+    else
+        error("No DDCIAnsatz Excitation Level Defined")
+    end
+
+
+    a_blocks, fock_as = make_blocks(prob.ras_spaces, prob.na, h, p)
+    b_blocks, fock_bs = make_blocks(prob.ras_spaces, prob.nb, h, p)
+    rasvec = OrderedDict{ActiveSpaceSolvers.RASCI_2.RasBlock, Array{Float64,3}}()
+    nroots = size(v, 2)
     
-    if prob.max_h2 != 0 && prob.max_p2 != 0 || prob.max_h2==0 && prob.max_p2 != 0 || prob.max_h2 !=0 && prob.max_p2 == 0
-        a_blocks2, fock_as2 = make_blocks(prob.ras_spaces, prob.na, prob.max_h2, prob.max_p2)
-        b_blocks2, fock_bs2 = make_blocks(prob.ras_spaces, prob.nb, prob.max_h2, prob.max_p2)
+    start = 1
+
+    for i in 1:length(a_blocks)
+        dima = binomial(prob.ras_spaces[1], fock_as[i][1])*binomial(prob.ras_spaces[2], fock_as[i][2])*binomial(prob.ras_spaces[3], fock_as[i][3])
+        for j in 1:length(b_blocks)
+            dimb = binomial(prob.ras_spaces[1], fock_bs[j][1])*binomial(prob.ras_spaces[2], fock_bs[j][2])*binomial(prob.ras_spaces[3], fock_bs[j][3])
+            if a_blocks[i][1]+b_blocks[j][1]<= h
+                if a_blocks[i][2]+b_blocks[j][2] <= p
+                    block1 = RasBlock(fock_as[i], fock_bs[j])
+                    rasvec[block1] = reshape(v[start:start+dima*dimb-1, :], dima, dimb, nroots)
+                    start += dima*dimb
+                end
+            end
+        end
+    end
+    
+    a_blocks2, fock_as2 = make_blocks(prob.ras_spaces, prob.na, h2, p2)
+    b_blocks2, fock_bs2 = make_blocks(prob.ras_spaces, prob.nb, h2, p2)
+    for i in 1:length(a_blocks2)
+        dima = binomial(prob.ras_spaces[1], fock_as2[i][1])*binomial(prob.ras_spaces[2], fock_as2[i][2])*binomial(prob.ras_spaces[3], fock_as2[i][3])
+        for j in 1:length(b_blocks2)
+            dimb = binomial(prob.ras_spaces[1], fock_bs2[j][1])*binomial(prob.ras_spaces[2], fock_bs2[j][2])*binomial(prob.ras_spaces[3], fock_bs2[j][3])
+            if a_blocks2[i][1]+b_blocks2[j][1]<= h2
+                if a_blocks2[i][2]+b_blocks2[j][2] <= p2
+                    block1 = RasBlock(fock_as2[i], fock_bs2[j])
+                    if haskey(rasvec, block1)
+                        continue
+                    else
+                        rasvec[block1] = reshape(v[start:start+dima*dimb-1, :], dima, dimb, nroots)
+                        start += dima*dimb
+                    end
+                end
+            end
+        end
+    end
+
+    if h3 != 0
+        ##DDCI 2x
+        a_blocks2, fock_as2 = make_blocks(prob.ras_spaces, prob.na, h3, p3)
+        b_blocks2, fock_bs2 = make_blocks(prob.ras_spaces, prob.nb, h3, p3)
         for i in 1:length(a_blocks2)
             dima = binomial(prob.ras_spaces[1], fock_as2[i][1])*binomial(prob.ras_spaces[2], fock_as2[i][2])*binomial(prob.ras_spaces[3], fock_as2[i][3])
             for j in 1:length(b_blocks2)
                 dimb = binomial(prob.ras_spaces[1], fock_bs2[j][1])*binomial(prob.ras_spaces[2], fock_bs2[j][2])*binomial(prob.ras_spaces[3], fock_bs2[j][3])
-                if a_blocks2[i][1]+b_blocks2[j][1]<= prob.max_h2
-                    if a_blocks2[i][2]+b_blocks2[j][2] <= prob.max_p2
+                if a_blocks2[i][1]+b_blocks2[j][1]<= h3
+                    if a_blocks2[i][2]+b_blocks2[j][2] <= p3
                         block1 = RasBlock(fock_as2[i], fock_bs2[j])
                         if haskey(rasvec, block1)
                             continue

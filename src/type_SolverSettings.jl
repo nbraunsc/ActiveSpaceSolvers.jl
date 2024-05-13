@@ -60,7 +60,7 @@ solver settings (defined by `S`) to the solver.
     If provided with "davidson", it needs to have number of columns equal to number of roots sought.
     If provided with "arpack", it can only be one vector.
 """
-function solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing) where {T, A<:Ansatz}
+function solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing, diag_vec=nothing) where {T, A<:Ansatz}
 
     #e = Vector{T}([])
     #v = Matrix{T}([])
@@ -100,7 +100,7 @@ function solve(ints::InCoreInts{T}, ansatz::A, S::SolverSettings; v0=nothing) wh
                        nroots=S.nroots, 
                        v0=v0, 
                        lindep_thresh=S.lindep_thresh)
-        e,v = BlockDavidson.eigs(dav)
+        e,v = BlockDavidson.eigs(dav, Adiag=diag_vec)
         return Solution{A,T}(ansatz, e, v)
 
 #    elseif lowercase(S.package) == "krylovkit"

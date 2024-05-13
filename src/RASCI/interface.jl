@@ -85,9 +85,9 @@ function LinearMaps.LinearMap(ints::InCoreInts, prb::RASCIAnsatz)
     function mymatvec(v)
         iters += 1
         #@printf(" Iter: %4i", iters)
-        #print("Iter: ", iters, " ")
+        print("Iter: ", iters, " ")
         #@printf(" %-50s", "Compute sigma 1: ")
-        #flush(stdout)
+        flush(stdout)
         #display(size(v))
        
         nr = 0
@@ -140,9 +140,9 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prb::RASCIAnsatz) where T
         else 
             nr = size(v)[2]
         end
-        sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(prb, spin_pairs, a_categories, b_categories, ints, v)
-        sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(prb, spin_pairs, a_categories, b_categories, ints, v)
-        sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, spin_pairs, a_categories, b_categories, ints, v)
+        @time sigma1 = ActiveSpaceSolvers.RASCI.sigma_one(prb, spin_pairs, a_categories, b_categories, ints, v)
+        @time sigma2 = ActiveSpaceSolvers.RASCI.sigma_two(prb, spin_pairs, a_categories, b_categories, ints, v)
+        @time sigma3 = ActiveSpaceSolvers.RASCI.sigma_three(prb, spin_pairs, a_categories, b_categories, ints, v)
         
         sig = sigma1 + sigma2 + sigma3
         
