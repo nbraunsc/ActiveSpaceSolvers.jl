@@ -2229,7 +2229,7 @@ end
 function compute_1rdm_2rdm(prob::A, C::Vector, lu) where {A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     v = RASVector(C, prob)#={{{=#
     #lu = fill_lu(v, prob.ras_spaces)
-    rdm1a, rdm1b = compute_1rdm(prob, C)
+    rdm1a, rdm1b = compute_1rdm(prob, C, lu)
     rdm2aa = zeros(prob.no, prob.no, prob.no, prob.no)
     rdm2bb = zeros(prob.no, prob.no, prob.no, prob.no)
     rdm2ab = zeros(prob.no, prob.no, prob.no, prob.no)
