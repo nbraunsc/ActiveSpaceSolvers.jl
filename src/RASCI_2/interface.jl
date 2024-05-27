@@ -63,10 +63,41 @@ Get LinearMap with takes a vector and returns action of H on that vector
 - prb:  `RASCIAnsatz` object
 """
 function LinearMaps.LinearMap(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where {T}
+    ras_help = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(prob, prob.max_h, prob.max_p)
+    @time lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, prob.ras_spaces)
     iters = 0
     function mymatvec(v)
         rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(v, prob)
-        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
+        
+        #1x and singles
+        #zero_out = [(ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (3, 2, 1))), (ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (3, 3, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (4, 2, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (4, 1, 1)))]
+        
+        #2x and doubles
+        #zero_out = [ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (3, 1, 2)), 
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (2, 3, 1)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (2, 2, 2)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (3, 2, 1)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (2, 4, 0)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (2, 3, 1)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 0, 2), (3, 3, 0)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 0, 2), (2, 4, 0)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (4, 0, 2)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (3, 2, 1)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (3, 1, 2)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (4, 1, 1)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (3, 3, 0)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (3, 2, 1)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 1, 2), (4, 2, 0)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 1, 2), (3, 3, 0)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 4, 0), (4, 1, 1)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 4, 0), (4, 0, 2)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 3, 1), (4, 2, 0)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 3, 1), (4, 1, 1)),
+        #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 2, 2), (4, 2, 0))]
+        #
+        #for block1 in zero_out
+        #    rasvec.data[block1] .= 0
+        #end
 
         iters += 1
         #@printf(" Iter: %4i", iters)
@@ -82,9 +113,13 @@ function LinearMaps.LinearMap(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where {T
             nr = size(v)[2]
         end
         
-        sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
-        sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
-        sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
+        #sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
+        #sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
+        #sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
+        
+        @time sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
+        @time sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
+        @time sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
         
         sig = sigma1 + sigma2 + sigma3
         sig .+= ints.h0*v
@@ -104,10 +139,12 @@ Get LinearMap with takes a vector and returns action of H on that vector
 """
 function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where T
 
+    ras_help = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(prob, prob.max_h, prob.max_p)
+    @time lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, prob.ras_spaces)
     iters = 0
     function mymatvec(v)
         rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(v, prob)
-        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
+        #@time lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
 
         iters += 1
         #@printf(" Iter: %4i", iters)
@@ -122,9 +159,9 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where 
             nr = size(v)[2]
         end
         
-        sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
-        sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
-        sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
+        @time sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
+        @time sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
+        @time sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
         
         sig = sigma1 + sigma2 + sigma3
         
@@ -159,7 +196,15 @@ end
 Compute the <S^2> expectation values for each state in `sol`
 """
 function ActiveSpaceSolvers.compute_s2(sol::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return compute_S2_expval(sol.vectors, sol.ansatz)
+    if typeof(sol.ansatz) == RASCIAnsatz_2
+        ras_help = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(sol.ansatz, sol.ansatz.max_h, sol.ansatz.max_p)
+        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, sol.ansatz.ras_spaces)
+        return compute_S2_expval(sol.vectors, sol.ansatz, lu)
+    else
+        ras_help = ActiveSpaceSolvers.DDCI.fill_lu_helper_ddci(sol.ansatz)
+        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, sol.ansatz.ras_spaces)
+        return compute_S2_expval(sol.vectors, sol.ansatz, lu)
+    end
 end
 
 """
@@ -168,7 +213,15 @@ end
 Build the S2 matrix in the Slater Determinant Basis  specified by `P`
 """
 function ActiveSpaceSolvers.apply_S2_matrix(P::A, v::AbstractArray{T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return apply_S2_matrix(P,v)
+    if typeof(sol.ansatz) == RASCIAnsatz_2
+        ras_help = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(sol.ansatz, sol.ansatz.max_h, sol.ansatz.max_p)
+        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, sol.ansatz.ras_spaces)
+        return apply_S2_matrix(P,v, lu)
+    else
+        ras_help = ActiveSpaceSolvers.DDCI.fill_lu_helper_ddci(sol.ansatz)
+        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, sol.ansatz.ras_spaces)
+        return apply_S2_matrix(P,v, lu)
+    end
 end
 
 """
@@ -434,14 +487,30 @@ end
     compute_1rdm(sol::Solution{A,T}; root=1) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 """
 function ActiveSpaceSolvers.compute_1rdm(sol::Solution{A,T}; root=1) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_1rdm(sol.ansatz, sol.vectors[:,root])
+    if typeof(sol.ansatz) == RASCIAnsatz_2
+        ras_help = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(sol.ansatz, sol.ansatz.max_h, sol.ansatz.max_p)
+        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, sol.ansatz.ras_spaces)
+        return ActiveSpaceSolvers.RASCI_2.compute_1rdm(sol.ansatz, sol.vectors[:,root], lu)
+    else
+        ras_help = ActiveSpaceSolvers.DDCI.fill_lu_helper_ddci(sol.ansatz)
+        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, sol.ansatz.ras_spaces)
+        return ActiveSpaceSolvers.RASCI_2.compute_1rdm(sol.ansatz, sol.vectors[:,root], lu)
+    end
 end
 
 """
     compute_1rdm_2rdm(sol::Solution{A,T}; root=1) where {A,T}
 """
 function ActiveSpaceSolvers.compute_1rdm_2rdm(sol::Solution{A,T}; root=1) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    return ActiveSpaceSolvers.RASCI_2.compute_1rdm_2rdm(sol.ansatz, sol.vectors[:,root])
+    if typeof(sol.ansatz) == RASCIAnsatz_2
+        ras_help = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(sol.ansatz, sol.ansatz.max_h, sol.ansatz.max_p)
+        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, sol.ansatz.ras_spaces)
+        return ActiveSpaceSolvers.RASCI_2.compute_1rdm_2rdm(sol.ansatz, sol.vectors[:,root],lu)
+    else
+        ras_help = ActiveSpaceSolvers.DDCI.fill_lu_helper_ddci(sol.ansatz)
+        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, sol.ansatz.ras_spaces)
+        return ActiveSpaceSolvers.RASCI_2.compute_1rdm_2rdm(sol.ansatz, sol.vectors[:,root],lu)
+    end
 end
 
 """

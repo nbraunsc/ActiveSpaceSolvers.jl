@@ -79,12 +79,17 @@ Get LinearMap with takes a vector and returns action of H on that vector
 - prb:  `RASCIAnsatz` object
 """
 function LinearMaps.LinearMap(ints::InCoreInts{T}, prob::DDCIAnsatz) where {T}
+    next_ddci,h,p = find_full_ddci(prob)
+    rasvec2 = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(next_ddci, h, p)
+    @time lu2 = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec2, prob.ras_spaces)
+
+    ras_help = fill_lu_helper_ddci(prob)
+    @time lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, prob.ras_spaces)
+
     iters = 0
     function mymatvec(v)
         rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(v, prob)
-        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
-        next_ddci,h,p = find_full_ddci(prob)
-        lu2 = fill_lu_ddci(next_ddci, h, p, size(v,2), prob.ras_spaces)
+        #lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
 
         iters += 1
         #@printf(" Iter: %4i", iters)
@@ -104,6 +109,10 @@ function LinearMaps.LinearMap(ints::InCoreInts{T}, prob::DDCIAnsatz) where {T}
         sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu2)
         sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
         
+        #@time sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu2)
+        #@time sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu2)
+        #@time sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
+        
         sig = sigma1 + sigma2 + sigma3
         sig .+= ints.h0*v
         return sig
@@ -121,13 +130,17 @@ Get LinearMap with takes a vector and returns action of H on that vector
 - prb:  `A` object
 """
 function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::DDCIAnsatz) where {T}
+    next_ddci,h,p = find_full_ddci(prob)
+    rasvec2 = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(next_ddci, h, p)
+    @time lu2 = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec2, prob.ras_spaces)
+
+    ras_help = fill_lu_helper_ddci(prob)
+    @time lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, prob.ras_spaces)
 
     iters = 0
     function mymatvec(v)
         rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(v, prob)
-        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
-        next_ddci,h,p = find_full_ddci(prob)
-        lu2 = fill_lu_ddci(next_ddci, h, p, size(v,2), prob.ras_spaces)
+        #@time lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
 
         iters += 1
         #@printf(" Iter: %4i", iters)
@@ -142,9 +155,9 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::DDCIAnsatz) where {T}
             nr = size(v)[2]
         end
         
-        sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu2)
-        sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu2)
-        sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
+        @time sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu2)
+        @time sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu2)
+        @time sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
         
         sig = sigma1 + sigma2 + sigma3
         
@@ -538,14 +551,37 @@ function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts, prob::DDCIAnsatz)
     return Hmat
 end
 
-function fill_lu_ddci(prob::DDCIAnsatz,h,p, nroots::Int, ras_spaces::SVector{3, Int})
-    #={{{=#
-    #single_excit = make_single_excit(ras_spaces)
-    a_blocks, fock_as = ActiveSpaceSolvers.RASCI_2.make_blocks(prob.ras_spaces, prob.na, h, p)#={{{=#
+function fill_lu_helper_ddci(prob::DDCIAnsatz) 
+    h=Int8(0)
+    p=Int8(0)
+    h2=Int8(0)
+    p2=Int8(0)
+    h3 = Int8(0)
+    p3 = Int8(0)
+    if prob.ex_level==1
+        h=Int8(1)
+        p=Int8(0)
+        h2=Int8(0)
+        p2=Int8(1)
+    elseif prob.ex_level==2
+        h=Int8(2)
+        p=Int8(0)
+        h2=Int8(0)
+        p2=Int8(2)
+        h3 = Int8(1)
+        p3 = Int8(1)
+    elseif prob.ex_level==3
+        h=Int8(2)
+        p=Int8(1)
+        h2=Int8(1)
+        p2=Int8(2)
+    else
+        error("No DDCIAnsatz Excitation Level Defined")
+    end
+    rasvec =Vector{Tuple{ActiveSpaceSolvers.RASCI_2.RasBlock, Int, Int}}()
+
+    a_blocks, fock_as = ActiveSpaceSolvers.RASCI_2.make_blocks(prob.ras_spaces, prob.na, h, p)
     b_blocks, fock_bs = ActiveSpaceSolvers.RASCI_2.make_blocks(prob.ras_spaces, prob.nb, h, p)
-    rasvec = OrderedDict{ActiveSpaceSolvers.RASCI_2.RasBlock, Array{Float64,3}}()
-    v = zeros(Float64, prob.dim, nroots) 
-    start = 1
 
     for i in 1:length(a_blocks)
         dima = binomial(prob.ras_spaces[1], fock_as[i][1])*binomial(prob.ras_spaces[2], fock_as[i][2])*binomial(prob.ras_spaces[3], fock_as[i][3])
@@ -554,16 +590,60 @@ function fill_lu_ddci(prob::DDCIAnsatz,h,p, nroots::Int, ras_spaces::SVector{3, 
             if a_blocks[i][1]+b_blocks[j][1]<= h
                 if a_blocks[i][2]+b_blocks[j][2] <= p
                     block1 = ActiveSpaceSolvers.RASCI_2.RasBlock(fock_as[i], fock_bs[j])
-                    rasvec[block1] = reshape(v[start:start+dima*dimb-1, :], dima, dimb, nroots)
-                    start += dima*dimb
+                    push!(rasvec, (block1, dima, dimb))
+                end
+            end
+        end
+    end
+    
+    a_blocks2, fock_as2 = ActiveSpaceSolvers.RASCI_2.make_blocks(prob.ras_spaces, prob.na, h2, p2)
+    b_blocks2, fock_bs2 = ActiveSpaceSolvers.RASCI_2.make_blocks(prob.ras_spaces, prob.nb, h2, p2)
+    for i in 1:length(a_blocks2)
+        dima = binomial(prob.ras_spaces[1], fock_as2[i][1])*binomial(prob.ras_spaces[2], fock_as2[i][2])*binomial(prob.ras_spaces[3], fock_as2[i][3])
+        for j in 1:length(b_blocks2)
+            dimb = binomial(prob.ras_spaces[1], fock_bs2[j][1])*binomial(prob.ras_spaces[2], fock_bs2[j][2])*binomial(prob.ras_spaces[3], fock_bs2[j][3])
+            if a_blocks2[i][1]+b_blocks2[j][1]<= h2
+                if a_blocks2[i][2]+b_blocks2[j][2] <= p2
+                    block1 = ActiveSpaceSolvers.RASCI_2.RasBlock(fock_as2[i], fock_bs2[j])
+                    if (block1, dima, dimb) in rasvec
+                        continue
+                    else
+                        push!(rasvec, (block1, dima, dimb))
+                    end
                 end
             end
         end
     end
 
+    if h3 != 0
+        ##DDCI 2x
+        a_blocks2, fock_as2 = ActiveSpaceSolvers.RASCI_2.make_blocks(prob.ras_spaces, prob.na, h3, p3)
+        b_blocks2, fock_bs2 = ActiveSpaceSolvers.RASCI_2.make_blocks(prob.ras_spaces, prob.nb, h3, p3)
+        for i in 1:length(a_blocks2)
+            dima = binomial(prob.ras_spaces[1], fock_as2[i][1])*binomial(prob.ras_spaces[2], fock_as2[i][2])*binomial(prob.ras_spaces[3], fock_as2[i][3])
+            for j in 1:length(b_blocks2)
+                dimb = binomial(prob.ras_spaces[1], fock_bs2[j][1])*binomial(prob.ras_spaces[2], fock_bs2[j][2])*binomial(prob.ras_spaces[3], fock_bs2[j][3])
+                if a_blocks2[i][1]+b_blocks2[j][1]<= h3
+                    if a_blocks2[i][2]+b_blocks2[j][2] <= p3
+                        block1 = ActiveSpaceSolvers.RASCI_2.RasBlock(fock_as2[i], fock_bs2[j])
+                        if (block1, dima, dimb) in rasvec
+                            continue
+                        else
+                            push!(rasvec, (block1, dima, dimb))
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return rasvec
+end
+
+
+function fill_lu_ddci(rasvec, ras_spaces::SVector{3, Int})
     ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI_2.make_ras_spaces(ras_spaces)
     norbs = sum(ras_spaces)
-    lookup = ActiveSpaceSolvers.RASCI_2.initalize_lu(ActiveSpaceSolvers.RASCI_2.RASVector(rasvec), norbs)
+    lookup = ActiveSpaceSolvers.RASCI_2.initalize_lu(rasvec, norbs)
    
     #general lu table
     for (fock1, lu_data) in lookup

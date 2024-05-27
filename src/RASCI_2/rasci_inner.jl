@@ -206,18 +206,47 @@ else
     end#=}}}=#
 end
 
-function initalize_lu(v::RASVector, no::Int)
+function initalize_lu(v::Vector{Tuple{ActiveSpaceSolvers.RASCI_2.RasBlock,Int,Int}}, no::Int)
     lu = Dict{Tuple{Int, Int, Int}, Array{Int,3}}()#={{{=#
-    for (block, vec) in v.data
-        if haskey(lu, block.focka) == false
-            lu[block.focka] = zeros(no, no, size(vec,1))
+    #for (block, vec) in v
+    #    if haskey(lu, block.focka) == false
+    #        lu[block.focka] = zeros(no, no, size(vec,1))
+    #    end
+    #    if haskey(lu, block.fockb) == false
+    #        lu[block.fockb] = zeros(no, no, size(vec,2))
+    #    end
+    #end
+
+    for block in v
+        if haskey(lu, block[1].focka) == false
+            lu[block[1].focka] = zeros(no, no, block[2])
         end
-        if haskey(lu, block.fockb) == false
-            lu[block.fockb] = zeros(no, no, size(vec,2))
+        if haskey(lu, block[1].fockb) == false
+            lu[block[1].fockb] = zeros(no, no, block[3])
         end
     end
     return lu
 end#=}}}=#
+
+function fill_lu_helper(prob::A, h, p) where {A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
+    a_blocks, fock_as = ActiveSpaceSolvers.RASCI_2.make_blocks(prob.ras_spaces, prob.na, h, p)
+    b_blocks, fock_bs = ActiveSpaceSolvers.RASCI_2.make_blocks(prob.ras_spaces, prob.nb, h, p)
+    rasvec =Vector{Tuple{RasBlock, Int, Int}}()
+
+    for i in 1:length(a_blocks)
+        dima = binomial(prob.ras_spaces[1], fock_as[i][1])*binomial(prob.ras_spaces[2], fock_as[i][2])*binomial(prob.ras_spaces[3], fock_as[i][3])
+        for j in 1:length(b_blocks)
+            dimb = binomial(prob.ras_spaces[1], fock_bs[j][1])*binomial(prob.ras_spaces[2], fock_bs[j][2])*binomial(prob.ras_spaces[3], fock_bs[j][3])
+            if a_blocks[i][1]+b_blocks[j][1]<= h
+                if a_blocks[i][2]+b_blocks[j][2] <= p
+                    block1 = ActiveSpaceSolvers.RASCI_2.RasBlock(fock_as[i], fock_bs[j])
+                    push!(rasvec, (block1, dima, dimb))
+                end
+            end
+        end
+    end
+    return rasvec
+end
 
 function initalize_lu_double(v::RASVector, no::Int)
     lu = Dict{Tuple{Int, Int, Int}, Array{Int,5}}()#={{{=#
@@ -232,7 +261,7 @@ function initalize_lu_double(v::RASVector, no::Int)
     return lu
 end#=}}}=#
 
-function fill_lu(v::RASVector, ras_spaces::SVector{3, Int})
+function fill_lu(v::Vector{Tuple{ActiveSpaceSolvers.RASCI_2.RasBlock,Int,Int}}, ras_spaces::SVector{3, Int})
     #={{{=#
     #single_excit = make_single_excit(ras_spaces)
     ras1, ras2, ras3 = make_ras_spaces(ras_spaces)
@@ -768,10 +797,10 @@ function get_Ckl!(Ckl::Array{T,3}, v::Array{T,3}, L::Vector{Int}, count::Int, nr
     end
 end#=}}}=#
 
-function scatter!(sig, VI::Array{T,2}, count::Int, nroots::Int) where T
+function scatter!(sig, Ib::Int, VI::Array{T,2}, count::Int, nroots::Int) where T
     for si in 1:nroots#={{{=#
         for Li in 1:count
-            sig[Li,si] += VI[Li,si]
+            sig[Li,Ib,si] += VI[Li,si]
         end
     end
 end#=}}}=#
@@ -864,11 +893,13 @@ function sigma_one(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, 
                 haskey(v_perm,block3) || continue
                 F_ij = zeros(size(v_perm[block3], 1))
                 #F_ij = zeros(size(v.data[block3], 2))
+                @views lub = lu[block1.fockb]
                 for Ib in 1:size(vec,1)
                     #for Ib in 1:size(vec,2)
                     fill!(F_ij, 0.0)
                     for l in l_range, k in k_range
-                        Jb = lu[block1.fockb][k,l,Ib]
+                        #Jb = lu[block1.fockb][k,l,Ib]
+                        Jb = lub[k,l,Ib]
                         Jb != 0 || continue
                         sign_kl = sign(Jb)
                         Jb = abs(Jb)
@@ -910,20 +941,45 @@ function sigma_one(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, 
     end
     
     #zero_out = [(ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (3, 2, 1))), (ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (3, 3, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (4, 2, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (4, 1, 1)))]
+    #zero_out = [ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (3, 1, 2)), 
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (2, 3, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (2, 2, 2)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (3, 2, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (2, 4, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (2, 3, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 0, 2), (3, 3, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 0, 2), (2, 4, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (4, 0, 2)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (3, 2, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (3, 1, 2)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (4, 1, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (3, 3, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (3, 2, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 1, 2), (4, 2, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 1, 2), (3, 3, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 4, 0), (4, 1, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 4, 0), (4, 0, 2)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 3, 1), (4, 2, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 3, 1), (4, 1, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 2, 2), (4, 2, 0))]
     #for block1 in zero_out
-    #    println(block1)
+    #    haskey(sig1, block1) || continue
     #    sig1[block1] .= 0
     #end
 
     starti = 1
     dim = get_dim(v)
     sig = zeros(Float64, dim, nroots)
+    
+    #sig2 = zeros(Float64, dim, nroots)
     for (block, vec) in sig1
+        #tmp_sig2 = reshape(sgnK.*vec, (size(vec,1)*size(vec,2), nroots))
         tmp = reshape(sgnK.*permutedims(vec, (2,1,3)), (size(vec,1)*size(vec,2), nroots))
         sig[starti:starti+(size(vec,1)*size(vec,2))-1, :] .= tmp
+        #sig2[starti:starti+(size(vec,1)*size(vec,2))-1, :] .= tmp_sig2
         starti += (size(vec,1)*size(vec,2))
     end
-    return sig
+    return sig#, sig2
     #return sig1
 end#=}}}=#
     
@@ -1009,221 +1065,29 @@ function sigma_two(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, 
     end
 
     #zero_out = [(ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (3, 2, 1))), (ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (3, 3, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (4, 2, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (4, 1, 1)))]
+    #zero_out = [ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (3, 1, 2)), 
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (2, 3, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (2, 2, 2)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (3, 2, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (2, 4, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (2, 3, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 0, 2), (3, 3, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 0, 2), (2, 4, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (4, 0, 2)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (3, 2, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (3, 1, 2)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (4, 1, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (3, 3, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (3, 2, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 1, 2), (4, 2, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 1, 2), (3, 3, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 4, 0), (4, 1, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 4, 0), (4, 0, 2)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 3, 1), (4, 2, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 3, 1), (4, 1, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 2, 2), (4, 2, 0))]
     #for block1 in zero_out
-    #    println(block1)
-    #    sig2[block1] .= 0
-    #end
-
-
-    starti = 1
-    dim = get_dim(v)
-    sig = zeros(Float64, dim, nroots)
-    for (block, vec) in sig2
-        tmp = reshape(vec, (size(vec,1)*size(vec,2), nroots))
-        sig[starti:starti+(size(vec,1)*size(vec,2))-1, :] .= tmp
-        starti += (size(vec,1)*size(vec,2))
-    end
-    return sig
-end#=}}}=#
-
-"""
-Sigma one (beta)
-"""
-function sigma_one(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, lu::Dict{Tuple{Int,Int,Int}, Array{Int,3}}, lu2::Dict{Tuple{Int,Int,Int}, Array{Int,5}}) where T
-    sig1 = initalize_sig_ba(v)#={{{=#
-    single_excit = make_single_excit(ras_spaces)
-    gkl = get_gkl(ints, sum(ras_spaces)) 
-    no = sum(ras_spaces)
-    first_entry = first(v.data)
-    na = sum(first_entry[1].focka)
-    nroots = size(first_entry[2],3)
-    
-    #sign to switch from (a,b) to (b,a) for optimizing
-    sgnK = 1 
-    if (na) % 2 != 0 
-        sgnK = -sgnK
-    end
-    
-    v_perm = initalize_sig_ba(v)
-
-    for (block1, vec) in v.data
-        v_perm[block1] .= sgnK.*permutedims(v.data[block1], (2,1,3))
-    end
-    
-    for (block1, vec) in v_perm
-        for ((k_range, l_range), delta1) in single_excit
-            #if length(k_range) == 0 || length(l_range)==0
-            #    continue
-            #end
-            block2 = ActiveSpaceSolvers.RASCI_2.RasBlock(block1.focka, block1.fockb.+delta1)
-            haskey(v_perm,block2) || continue
-            F = zeros(size(v_perm[block2], 1))
-            #F = zeros(size(v.data[block2], 2))
-            for Ib in 1:size(vec,1)
-                fill!(F, 0.0)
-                for l in l_range, k in k_range  
-                    Jb = lu[block1.fockb][k,l,Ib]
-                    Jb != 0 || continue
-                    sign_kl = sign(Jb)
-                    Jb = abs(Jb)
-                    F[Jb] += sign_kl*gkl[l,k]
-                end
-                
-                @views sig_Ib = sig1[block1][Ib,:,:]
-                @views C = v_perm[block2]
-                @tensor begin
-                    sig_Ib[Ia, r] += F[Jb]*C[Jb, Ia, r]
-                end
-            end
-        end
-        for ((k_range, l_range), delta1) in single_excit
-            for ((i_range, j_range), delta2) in single_excit
-                block3 = ActiveSpaceSolvers.RASCI_2.RasBlock(block1.focka, block1.fockb.+delta1.+delta2)
-                haskey(v_perm,block3) || continue
-                F_ij = zeros(size(v_perm[block3], 1))
-                for Ib in 1:size(vec,1)
-                    fill!(F_ij, 0.0)
-                    for l in l_range, k in k_range
-                        Jb = lu2[block1.fockb][k,l,Ib]
-                        Jb != 0 || continue
-                        sign_kl = sign(Jb)
-                        Jb = abs(Jb)
-                        comb_kl = (l-1)*no + k
-                        @views lu_Jb = lu2[block1.fockb.+delta1][:,:,Jb]
-                        for j in j_range, i in i_range
-                            comb_ij = (j-1)*no + i
-                            #comb_ij >= comb_kl || continue
-
-                            Kb = lu_Jb[i,j]
-                            #Kb = lu[block1.fockb.+delta1][i,j,Jb]   # Kb is local to block3
-                            Kb != 0 || continue
-                            sign_ij = sign(Kb)
-                            Kb = abs(Kb)
-
-                            if comb_kl == comb_ij
-                                delta = 1
-                            else
-                                delta = 0
-                            end
-                            if sign_kl == sign_ij
-                                F_ij[Kb] += (ints.h2[j,i,l,k]*1/(1+delta))
-                            else
-                                F_ij[Kb] -= (ints.h2[j,i,l,k]*1/(1+delta))
-                            end
-                        end
-                    end
-
-                    @views sig_Ib = sig1[block1][Ib,:,:]
-                    #@views sig_Ib = sig1[block1][:,Ib,:]
-                    @views C = v_perm[block3]
-                    @tensor begin
-                        sig_Ib[Ia, r] += F_ij[Jb]*C[Jb, Ia, r]
-                        #sig_Ib[Ia, r] += F_ij[Jb]*C[Ia, Jb, r]
-                    end
-                end
-            end
-        end
-    end
-    
-    #zero_out = [(ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (3, 2, 1))), (ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (3, 3, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (4, 2, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (4, 1, 1)))]
-    #for block1 in zero_out
-    #    println(block1)
-    #    sig1[block1] .= 0
-    #end
-
-    starti = 1
-    dim = get_dim(v)
-    sig = zeros(Float64, dim, nroots)
-    for (block, vec) in sig1
-        tmp = reshape(sgnK.*permutedims(vec, (2,1,3)), (size(vec,1)*size(vec,2), nroots))
-        sig[starti:starti+(size(vec,1)*size(vec,2))-1, :] .= tmp
-        starti += (size(vec,1)*size(vec,2))
-    end
-    return sig
-    #return sig1
-end#=}}}=#
-    
-"""
-Sigma two (alpha)
-"""
-function sigma_two(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}, lu::Dict{Tuple{Int,Int,Int}, Array{Int,3}}, lu2::Dict{Tuple{Int,Int,Int}, Array{Int,5}})
-    sig2 = initalize_sig(v)#={{{=#
-    single_excit = make_single_excit(ras_spaces)
-    double_exc = make_excitation_classes_ccaa(ras_spaces)
-    gkl = get_gkl(ints, sum(ras_spaces)) 
-    no = sum(ras_spaces)
-    nroots = size(first(v.data)[2],3)
-
-    for (block1, vec) in v.data
-        for ((k_range, l_range), delta1) in single_excit
-            block2 = ActiveSpaceSolvers.RASCI_2.RasBlock(block1.focka.+delta1, block1.fockb)
-            haskey(v.data,block2) || continue
-            F = zeros(size(v.data[block2], 1))
-            for Ia in 1:size(vec,1)
-                fill!(F, 0.0)
-                for l in l_range, k in k_range  
-                    Ja = lu[block1.focka][k,l,Ia]
-                    Ja != 0 || continue
-                    sign_kl = sign(Ja)
-                    Ja = abs(Ja)
-                    F[Ja] += sign_kl*gkl[l,k]
-
-                end
-                @views sig_Ia = sig2[block1][Ia,:,:]
-                @views C = v.data[block2]
-                @tensor begin
-                    sig_Ia[Ib, r] += F[Ja]*C[Ja, Ib, r]
-                end
-            end
-        end
-        
-        #<pq|rs>p'q'rs -> (ps|qr)
-        #Need to access the full space for ddci (this is taken care of in lookup table!
-        for ((p_range, q_range, s_range, r_range), delta_e) in double_exc
-            block3 = ActiveSpaceSolvers.RASCI_2.RasBlock(block1.focka.+delta_e, block1.fockb)
-            haskey(v.data,block3) || continue
-            F_ij = zeros(size(v.data[block3], 1))
-            for Ia in 1:size(vec,1)
-                fill!(F_ij, 0.0)
-                for r in r_range
-                    for s in s_range
-                        for q in q_range
-                            for p in p_range
-                                Ka = lu2[block1.focka][p,q,s,r,Ia]
-                                #Ka = lu2[block1.focka][p,q,r,s,Ia]
-                                Ka != 0 || continue
-                                sign_pqrs = sign(Ka)
-                                Ka = abs(Ka)
-                                #comb_pr = (p-1)*no + s
-                                #comb_qs = (q-1)*no + r
-                                comb_pr = (p-1)*no + r
-                                comb_qs = (q-1)*no + s
-                                #delta=1
-                                if comb_qs == comb_pr
-                                    delta = 1
-                                else
-                                    delta = 0
-                                end
-                                #F_ij[Ka] += sign_pqrs*(ints.h2[p,r,q,s]*1/(1+delta))
-                                F_ij[Ka] += sign_pqrs*(ints.h2[p,s,q,r]*1/(1+delta))
-                            end
-                        end
-                    end
-                end
-
-
-                @views sig_Iaa = sig2[block1][Ia,:,:]
-                @views C = v.data[block3]
-                @tensor begin
-                    sig_Iaa[Ib, r] += F_ij[Ja]*C[Ja, Ib, r]
-                end
-            end
-        end
-    end
-
-    #zero_out = [(ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (3, 2, 1))), (ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (3, 3, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (4, 2, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (4, 1, 1)))]
-    #for block1 in zero_out
-    #    println(block1)
+    #    haskey(sig2, block1) || continue
     #    sig2[block1] .= 0
     #end
 
@@ -1591,6 +1455,7 @@ function sigma_three(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}
                     #        Jb = abs(Jb)
                     #        F[Jb] += hkl[j,i]*sign_b
                     #    end
+                    @views sigIB = sig3[block1][R,:,:]
                     for Ib in 1:size(vec,2)
                         fill!(F, 0.0)
                         for i in i_range
@@ -1608,8 +1473,8 @@ function sigma_three(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}
                         fill!(VI, 0.0)
                         _mult!(Ckl, F, VI)
 
-                        @views sigIB = sig3[block1][R,Ib,:]
-                        scatter!(sigIB, VI, count, nroots)
+                        #@views sigIB = sig3[block1][R,Ib,:]
+                        scatter!(sigIB, Ib, VI, count, nroots)
                     end
                 end
             end
@@ -1617,8 +1482,29 @@ function sigma_three(v::RASVector, ints::InCoreInts, ras_spaces::SVector{3, Int}
     end
     
     #zero_out = [(ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (3, 2, 1))), (ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (3, 3, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (4, 2, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (4, 1, 1)))]
+    #zero_out = [ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (3, 1, 2)), 
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (2, 3, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (2, 2, 2)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (3, 2, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (2, 4, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (2, 3, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 0, 2), (3, 3, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 0, 2), (2, 4, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (4, 0, 2)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (3, 2, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (3, 1, 2)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (4, 1, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (3, 3, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (3, 2, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 1, 2), (4, 2, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 1, 2), (3, 3, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 4, 0), (4, 1, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 4, 0), (4, 0, 2)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 3, 1), (4, 2, 0)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 3, 1), (4, 1, 1)),
+    #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 2, 2), (4, 2, 0))]
     #for block1 in zero_out
-    #    println(block1)
+    #    haskey(sig3, block1) || continue
     #    sig3[block1] .= 0
     #end
 
@@ -1941,7 +1827,7 @@ function get_fock_delta(orb_a::Int, orb_c::Int, ras_spaces::SVector{3, Int})
     return delta
 end#=}}}=#
 
-function compute_S2_expval(C::Matrix, P::A) where {A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
+function compute_S2_expval(C::Matrix, P::A, lu) where {A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     ###{{{
     #S2 = (S+S- + S-S+)1/2 + Sz.Sz
     #   = 1/2 sum_ij(ai'bi bj'ai + bj'aj ai'bi) + Sz.Sz
@@ -1953,7 +1839,7 @@ function compute_S2_expval(C::Matrix, P::A) where {A<:Union{RASCIAnsatz_2, DDCIA
     nr = size(C,2)
     s2 = zeros(nr)
     v = RASVector(C, P)
-    lu = fill_lu(v, P.ras_spaces)
+    #lu = fill_lu(v, P.ras_spaces)
     
     for (block1, vec) in v.data
         as = get_configs(P.ras_spaces, block1.focka)
@@ -2042,7 +1928,7 @@ function compute_S2_expval(C::Matrix, P::A) where {A<:Union{RASCIAnsatz_2, DDCIA
     return s2#=}}}=#
 end
 
-function apply_S2_matrix(P::A, C::AbstractArray{T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
+function apply_S2_matrix(P::A, C::AbstractArray{T}, lu) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     ###{{{
     #S2 = (S+S- + S-S+)1/2 + Sz.Sz
     #   = 1/2 sum_ij(ai'bi bj'ai + bj'aj ai'bi) + Sz.Sz
@@ -2054,7 +1940,7 @@ function apply_S2_matrix(P::A, C::AbstractArray{T}) where {T, A<:Union{RASCIAnsa
     nr = size(C,2)
     v = RASVector(C, P)
     s2v = initalize_sig(v)
-    lu = fill_lu(v, P.ras_spaces)
+    #lu = fill_lu(v, P.ras_spaces)
     v = v.data
 
     for (block1, vec) in v
@@ -2138,9 +2024,9 @@ function apply_S2_matrix(P::A, C::AbstractArray{T}) where {T, A<:Union{RASCIAnsa
     return S2#=}}}=#
 end
 
-function compute_1rdm(prob::A, C::Vector) where {A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
+function compute_1rdm(prob::A, C::Vector, lu) where {A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     v = RASVector(C, prob)#={{{=#
-    lu = fill_lu(v, prob.ras_spaces)
+    #lu = fill_lu(v, prob.ras_spaces)
     single_excit = make_single_excit(prob.ras_spaces)
     rdm1a = zeros(prob.no, prob.no)
     rdm1b = zeros(prob.no, prob.no)
@@ -2340,9 +2226,9 @@ function compute_1rdm_2rdm_old(prob::RASCIAnsatz_2, C::Vector)
     return rdm1a, rdm1b, rdm2aa, rdm2bb, rdm2ab#=}}}=#
 end
 
-function compute_1rdm_2rdm(prob::A, C::Vector) where {A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
+function compute_1rdm_2rdm(prob::A, C::Vector, lu) where {A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     v = RASVector(C, prob)#={{{=#
-    lu = fill_lu(v, prob.ras_spaces)
+    #lu = fill_lu(v, prob.ras_spaces)
     rdm1a, rdm1b = compute_1rdm(prob, C)
     rdm2aa = zeros(prob.no, prob.no, prob.no, prob.no)
     rdm2bb = zeros(prob.no, prob.no, prob.no, prob.no)
@@ -2352,10 +2238,6 @@ function compute_1rdm_2rdm(prob::A, C::Vector) where {A<:Union{RASCIAnsatz_2, DD
     double_excit = make_excitation_classes_ccaa(prob.ras_spaces)
 
     ras1, ras2, ras3 = make_ras_spaces(prob.ras_spaces)
-    
-    #ras1 = range(start=1, stop=prob.ras_spaces[1])
-    #ras2 = range(start=prob.ras_spaces[1]+1,stop=prob.ras_spaces[1]+prob.ras_spaces[2])
-    #ras3 = range(start=prob.ras_spaces[1]+prob.ras_spaces[2]+1, stop=prob.ras_spaces[1]+prob.ras_spaces[2]+prob.ras_spaces[3])
     
     aconfig = zeros(Int, prob.na)
     aconfig_a = zeros(Int, prob.na-1)
