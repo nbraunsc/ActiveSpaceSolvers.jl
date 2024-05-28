@@ -312,58 +312,58 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::DDCIAnsatz)
 
     bra_ansatz = DDCIAnsatz(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.ras_spaces, ex_level=ansatz.ex_level)
     wtmp = ActiveSpaceSolvers.RASCI_2.RASVector(zeros(bra_ansatz.dim, nroots), bra_ansatz)
-    w = initalize_sig(wtmp)
+    w = ActiveSpaceSolvers.RASCI_2.initalize_sig(wtmp)
     
-    create_list = make_excitation_classes_c(ansatz.ras_spaces)
-    ann_list = make_excitation_classes_a(ansatz.ras_spaces)
+    create_list = ActiveSpaceSolvers.RASCI_2.make_excitation_classes_c(ansatz.ras_spaces)
+    ann_list = ActiveSpaceSolvers.RASCI_2.make_excitation_classes_a(ansatz.ras_spaces)
     ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI_2.make_ras_spaces(ansatz.ras_spaces)
     #note ras1 is same as ras1_bra so do not need to compute them
     
     for (block1, vec) in v2.data
         #loop over alpha strings
         idxa = 0
-        det3a = SubspaceDeterminantString(ansatz.ras_spaces[3], block1.focka[3])
+        det3a = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ansatz.ras_spaces[3], block1.focka[3])
         for na in 1:det3a.max
-            det2a = SubspaceDeterminantString(ansatz.ras_spaces[2], block1.focka[2])
+            det2a = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ansatz.ras_spaces[2], block1.focka[2])
             for ja in 1:det2a.max
-                det1a = SubspaceDeterminantString(ansatz.ras_spaces[1], block1.focka[1])
+                det1a = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ansatz.ras_spaces[1], block1.focka[1])
                 for ia in 1:det1a.max
                     idxa += 1
                     aconfig = [det1a.config;det2a.config.+det1a.no;det3a.config.+det1a.no.+det2a.no]
 
                     #now beta strings
                     idxb=0
-                    det3b = SubspaceDeterminantString(ansatz.ras_spaces[3], block1.fockb[3])
+                    det3b = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ansatz.ras_spaces[3], block1.fockb[3])
                     for n in 1:det3b.max
-                        det2b = SubspaceDeterminantString(ansatz.ras_spaces[2], block1.fockb[2])
+                        det2b = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ansatz.ras_spaces[2], block1.fockb[2])
                         for j in 1:det2b.max
-                            det1b = SubspaceDeterminantString(ansatz.ras_spaces[1], block1.fockb[1])
+                            det1b = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ansatz.ras_spaces[1], block1.fockb[1])
                             for i in 1:det1b.max
                                 idxb += 1
                                 bconfig = [det1b.config;det2b.config.+det1b.no;det3b.config.+det1b.no.+det2b.no]
                                 for (p_range, delta_c) in create_list
                                     for (q_range, delta_a) in ann_list
-                                        block2 = RasBlock(block1.focka.+delta_a, block1.fockb.+delta_c)
+                                        block2 = ActiveSpaceSolvers.RASCI_2.RasBlock(block1.focka.+delta_a, block1.fockb.+delta_c)
                                         haskey(w, block2) || continue
                                         for q in q_range
                                             tmp = deepcopy(aconfig)
                                             if q in tmp
-                                                sgn_q, det_a = apply_annihilation(tmp, q)
+                                                sgn_q, det_a = ActiveSpaceSolvers.RASCI_2.apply_annihilation(tmp, q)
                                                 sgn_q != 0 || continue
-                                                d1_a, d2_a, d3_a = breakup_config(det_a, ras1, ras2, ras3)
-                                                det1_q = SubspaceDeterminantString(length(ras1), length(d1_a), d1_a)
-                                                det2_q = SubspaceDeterminantString(length(ras2), length(d2_a), d2_a.-length(ras1))
-                                                det3_q = SubspaceDeterminantString(length(ras3), length(d3_a), d3_a.-length(ras1).-length(ras2))
+                                                d1_a, d2_a, d3_a = ActiveSpaceSolvers.RASCI_2.breakup_config(det_a, ras1, ras2, ras3)
+                                                det1_q = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(length(ras1), length(d1_a), d1_a)
+                                                det2_q = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(length(ras2), length(d2_a), d2_a.-length(ras1))
+                                                det3_q = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(length(ras3), length(d3_a), d3_a.-length(ras1).-length(ras2))
 
-                                                idxa_new = calc_full_ras_index(det1_q, det2_q, det3_q)
+                                                idxa_new = ActiveSpaceSolvers.RASCI_2.calc_full_ras_index(det1_q, det2_q, det3_q)
                                                 for p in p_range
                                                     p == q || continue
                                                     tmp2 = deepcopy(bconfig)
                                                     if p in tmp2
                                                         continue
                                                     else
-                                                        d1_c, d2_c, d3_c = breakup_config(tmp2, ras1, ras2, ras3)
-                                                        sgn_p, idxb_new = apply_creation!(d1_c, d2_c, d3_c, ras1, ras2, ras3, p)
+                                                        d1_c, d2_c, d3_c = ActiveSpaceSolvers.RASCI_2.breakup_config(tmp2, ras1, ras2, ras3)
+                                                        sgn_p, idxb_new = ActiveSpaceSolvers.RASCI_2.apply_creation!(d1_c, d2_c, d3_c, ras1, ras2, ras3, p)
                                                         sgn_p != 0 || continue
 
                                                         w[block2][idxa_new, idxb_new,:] .+= sgnK*sgn_q*sgn_p*vec[idxa,idxb,:]
@@ -373,17 +373,17 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::DDCIAnsatz)
                                         end
                                     end
                                 end
-                                incr!(det1b)
+                                ActiveSpaceSolvers.RASCI_2.incr!(det1b)
                             end
-                            incr!(det2b)
+                            ActiveSpaceSolvers.RASCI_2.incr!(det2b)
                         end
-                        incr!(det3b)
+                        ActiveSpaceSolvers.RASCI_2.incr!(det3b)
                     end
-                    incr!(det1a)
+                    ActiveSpaceSolvers.RASCI_2.incr!(det1a)
                 end
-                incr!(det2a)
+                ActiveSpaceSolvers.RASCI_2.incr!(det2a)
             end
-            incr!(det3a)
+            ActiveSpaceSolvers.RASCI_2.incr!(det3a)
         end
     end
 
@@ -431,58 +431,58 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::DDCIAnsatz)
     
     bra_ansatz = DDCIAnsatz(ansatz.no, ansatz.na+1, ansatz.nb-1, ansatz.ras_spaces, ex_level=ansatz.ex_level)
     wtmp = ActiveSpaceSolvers.RASCI_2.RASVector(zeros(bra_ansatz.dim, nroots), bra_ansatz)
-    w = initalize_sig(wtmp)
+    w = ActiveSpaceSolvers.RASCI_2.initalize_sig(wtmp)
     
-    create_list = make_excitation_classes_c(ansatz.ras_spaces)
-    ann_list = make_excitation_classes_a(ansatz.ras_spaces)
+    create_list = ActiveSpaceSolvers.RASCI_2.make_excitation_classes_c(ansatz.ras_spaces)
+    ann_list = ActiveSpaceSolvers.RASCI_2.make_excitation_classes_a(ansatz.ras_spaces)
     ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI_2.make_ras_spaces(ansatz.ras_spaces)
     #note ras1 is same as ras1_bra so do not need to compute them
     
     for (block1, vec) in v2.data
         #loop over alpha strings
         idxa = 0
-        det3a = SubspaceDeterminantString(ansatz.ras_spaces[3], block1.focka[3])
+        det3a = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ansatz.ras_spaces[3], block1.focka[3])
         for na in 1:det3a.max
-            det2a = SubspaceDeterminantString(ansatz.ras_spaces[2], block1.focka[2])
+            det2a = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ansatz.ras_spaces[2], block1.focka[2])
             for ja in 1:det2a.max
-                det1a = SubspaceDeterminantString(ansatz.ras_spaces[1], block1.focka[1])
+                det1a = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ansatz.ras_spaces[1], block1.focka[1])
                 for ia in 1:det1a.max
                     idxa += 1
                     aconfig = [det1a.config;det2a.config.+det1a.no;det3a.config.+det1a.no.+det2a.no]
 
                     #now beta strings
                     idxb=0
-                    det3b = SubspaceDeterminantString(ansatz.ras_spaces[3], block1.fockb[3])
+                    det3b = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ansatz.ras_spaces[3], block1.fockb[3])
                     for n in 1:det3b.max
-                        det2b = SubspaceDeterminantString(ansatz.ras_spaces[2], block1.fockb[2])
+                        det2b = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ansatz.ras_spaces[2], block1.fockb[2])
                         for j in 1:det2b.max
-                            det1b = SubspaceDeterminantString(ansatz.ras_spaces[1], block1.fockb[1])
+                            det1b = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(ansatz.ras_spaces[1], block1.fockb[1])
                             for i in 1:det1b.max
                                 idxb += 1
                                 bconfig = [det1b.config;det2b.config.+det1b.no;det3b.config.+det1b.no.+det2b.no]
                                 for (p_range, delta_c) in create_list
                                     for (q_range, delta_a) in ann_list
-                                        block2 = RasBlock(block1.focka.+delta_c, block1.fockb.+delta_a)
+                                        block2 = ActiveSpaceSolvers.RASCI_2.RasBlock(block1.focka.+delta_c, block1.fockb.+delta_a)
                                         haskey(w, block2) || continue
                                         for q in q_range
                                             tmp = deepcopy(bconfig)
                                             if q in tmp
-                                                sgn_q, det_a = apply_annihilation(tmp, q)
+                                                sgn_q, det_a = ActiveSpaceSolvers.RASCI_2.apply_annihilation(tmp, q)
                                                 sgn_q != 0 || continue
-                                                d1_a, d2_a, d3_a = breakup_config(det_a, ras1, ras2, ras3)
-                                                det1_q = SubspaceDeterminantString(length(ras1), length(d1_a), d1_a)
-                                                det2_q = SubspaceDeterminantString(length(ras2), length(d2_a), d2_a.-length(ras1))
-                                                det3_q = SubspaceDeterminantString(length(ras3), length(d3_a), d3_a.-length(ras1).-length(ras2))
+                                                d1_a, d2_a, d3_a = ActiveSpaceSolvers.RASCI_2.breakup_config(det_a, ras1, ras2, ras3)
+                                                det1_q = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(length(ras1), length(d1_a), d1_a)
+                                                det2_q = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(length(ras2), length(d2_a), d2_a.-length(ras1))
+                                                det3_q = ActiveSpaceSolvers.RASCI_2.SubspaceDeterminantString(length(ras3), length(d3_a), d3_a.-length(ras1).-length(ras2))
 
-                                                idxb_new = calc_full_ras_index(det1_q, det2_q, det3_q)
+                                                idxb_new = ActiveSpaceSolvers.RASCI_2.calc_full_ras_index(det1_q, det2_q, det3_q)
                                                 for p in p_range
                                                     p == q || continue
                                                     tmp2 = deepcopy(aconfig)
                                                     if p in tmp2
                                                         continue
                                                     else
-                                                        d1_c, d2_c, d3_c = breakup_config(tmp2, ras1, ras2, ras3)
-                                                        sgn_p, idxa_new = apply_creation!(d1_c, d2_c, d3_c, ras1, ras2, ras3, p)
+                                                        d1_c, d2_c, d3_c = ActiveSpaceSolvers.RASCI_2.breakup_config(tmp2, ras1, ras2, ras3)
+                                                        sgn_p, idxa_new = ActiveSpaceSolvers.RASCI_2.apply_creation!(d1_c, d2_c, d3_c, ras1, ras2, ras3, p)
                                                         sgn_p != 0 || continue
 
                                                         w[block2][idxa_new, idxb_new,:] .+= sgnK*sgn_q*sgn_p*vec[idxa,idxb,:]
@@ -492,17 +492,17 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::DDCIAnsatz)
                                         end
                                     end
                                 end
-                                incr!(det1b)
+                                ActiveSpaceSolvers.RASCI_2.incr!(det1b)
                             end
-                            incr!(det2b)
+                            ActiveSpaceSolvers.RASCI_2.incr!(det2b)
                         end
-                        incr!(det3b)
+                        ActiveSpaceSolvers.RASCI_2.incr!(det3b)
                     end
-                    incr!(det1a)
+                    ActiveSpaceSolvers.RASCI_2.incr!(det1a)
                 end
-                incr!(det2a)
+                ActiveSpaceSolvers.RASCI_2.incr!(det2a)
             end
-            incr!(det3a)
+            ActiveSpaceSolvers.RASCI_2.incr!(det3a)
         end
     end
 
