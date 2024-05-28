@@ -303,7 +303,7 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::DDCIAnsatz)
     # = c(IJ,s)c(KL,t) <I|a|K><J|b'|L> (-1) (-1)^ket_a.ne
     
     nroots = size(v,2)
-    v2 = RASVector(v, ansatz)
+    v2 = ActiveSpaceSolvers.RASCI_2.RASVector(v, ansatz)
     
     sgnK = -1
     if ansatz.na % 2 != 0 
@@ -418,7 +418,7 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::DDCIAnsatz)
     # = c(IJ,s)c(KL,t) <I|a'|K><J|b|L> (-1)^ket_a.ne
 
     nroots = size(v,2)
-    v2 = RASVector(v, ansatz)
+    v2 = ActiveSpaceSolvers.RASCI_2.RASVector(v, ansatz)
     
     if ansatz.na + 1 > ansatz.no
         error(" Can't increase Ms further")
