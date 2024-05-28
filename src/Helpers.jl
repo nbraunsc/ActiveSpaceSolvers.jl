@@ -46,7 +46,10 @@ function generate_cluster_fock_ansatze( ref_fock,
                 ansatz_i = RASCIAnsatz(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p)
                 push!(sectors, ansatz_i)
             elseif typeof(init_cluster_ansatz[i]) == RASCIAnsatz_2
-                ansatz_i = RASCIAnsatz_2(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p, max_h2=init_cluster_ansatz[i].max_h2, max_p2=init_cluster_ansatz[i].max_p2)
+                ansatz_i = RASCIAnsatz_2(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p)
+                push!(sectors, ansatz_i)
+            elseif typeof(init_cluster_ansatz[i]) == DDCIAnsatz
+                ansatz_i = DDCIAnsatz(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, ex_level=init_cluster_ansatz[i].ex_level)
                 push!(sectors, ansatz_i)
             else
                 error("No ansatz defined")
@@ -101,7 +104,10 @@ function generate_cluster_fock_ansatze_all( ref_fock,
                 ansatz_i = RASCIAnsatz(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p)
                 push!(sectors, ansatz_i)
             elseif typeof(init_cluster_ansatz[i]) == RASCIAnsatz_2
-                ansatz_i = RASCIAnsatz_2(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p, max_h2=init_cluster_ansatz[i].max_h2, max_p2=init_cluster_ansatz[i].max_p2)
+                ansatz_i = RASCIAnsatz_2(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, max_h=init_cluster_ansatz[i].max_h, max_p=init_cluster_ansatz[i].max_p)
+                push!(sectors, ansatz_i)
+            elseif typeof(init_cluster_ansatz[i]) == DDCIAnsatz
+                ansatz_i = DDCIAnsatz(init_cluster_ansatz[i].no, naj, nbj, init_cluster_ansatz[i].ras_spaces, ex_level=init_cluster_ansatz[i].ex_level)
                 push!(sectors, ansatz_i)
             else
                 error("No ansatz defined")
@@ -130,7 +136,8 @@ function invariant_orbital_rotations(cluster::Ansatz)
 
     else
         #return pairs of orbs within each ras subspace
-        ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI.make_rasorbs(cluster.ras_spaces[1], cluster.ras_spaces[2], cluster.ras_spaces[3], cluster.no)
+        #ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI.make_rasorbs(cluster.ras_spaces[1], cluster.ras_spaces[2], cluster.ras_spaces[3], cluster.no)
+        ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI_2.make_ras_spaces(i.ras_spaces)
         for a in 1:length(ras1)
             for b in a+1:length(ras1)
                 push!(invar_pairs, (ras1[a],ras1[b]))
@@ -172,7 +179,8 @@ function invariant_orbital_rotations(init_cluster_ansatz::Vector{<:Ansatz})
 
         else
             #return pairs of orbs within each ras subspace
-            ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI.make_rasorbs(i.ras_spaces[1], i.ras_spaces[2], i.ras_spaces[3], i.no)
+            ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI_2.make_ras_spaces(i.ras_spaces)
+            #ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI.make_rasorbs(i.ras_spaces[1], i.ras_spaces[2], i.ras_spaces[3], i.no)
             pairs = []
             for a in 1:length(ras1)
                 for b in a+1:length(ras1)
