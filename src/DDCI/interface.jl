@@ -311,7 +311,7 @@ function ActiveSpaceSolvers.apply_sminus(v::Matrix, ansatz::DDCIAnsatz)
     end
 
     bra_ansatz = DDCI(ansatz.no, ansatz.na-1, ansatz.nb+1, ansatz.ras_spaces, ex_level=ansatz.ex_level)
-    wtmp = RASVector(zeros(bra_ansatz.dim, nroots), bra_ansatz)
+    wtmp = ActiveSpaceSolvers.RASCI_2.RASVector(zeros(bra_ansatz.dim, nroots), bra_ansatz)
     w = initalize_sig(wtmp)
     
     create_list = make_excitation_classes_c(ansatz.ras_spaces)
@@ -430,7 +430,7 @@ function ActiveSpaceSolvers.apply_splus(v::Matrix, ansatz::DDCIAnsatz)
     end
     
     bra_ansatz = DDCI(ansatz.no, ansatz.na+1, ansatz.nb-1, ansatz.ras_spaces, ex_level=ansatz.ex_level)
-    wtmp = RASVector(zeros(bra_ansatz.dim, nroots), bra_ansatz)
+    wtmp = ActiveSpaceSolvers.RASCI_2.RASVector(zeros(bra_ansatz.dim, nroots), bra_ansatz)
     w = initalize_sig(wtmp)
     
     create_list = make_excitation_classes_c(ansatz.ras_spaces)
