@@ -213,13 +213,13 @@ end
 Build the S2 matrix in the Slater Determinant Basis  specified by `P`
 """
 function ActiveSpaceSolvers.apply_S2_matrix(P::A, v::AbstractArray{T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
-    if typeof(sol.ansatz) == RASCIAnsatz_2
-        ras_help = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(sol.ansatz, sol.ansatz.max_h, sol.ansatz.max_p)
-        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, sol.ansatz.ras_spaces)
+    if typeof(P) == RASCIAnsatz_2
+        ras_help = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(P, P.max_h, P.max_p)
+        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, P.ras_spaces)
         return apply_S2_matrix(P,v, lu)
     else
-        ras_help = ActiveSpaceSolvers.DDCI.fill_lu_helper_ddci(sol.ansatz)
-        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, sol.ansatz.ras_spaces)
+        ras_help = ActiveSpaceSolvers.DDCI.fill_lu_helper_ddci(P)
+        lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, P.ras_spaces)
         return apply_S2_matrix(P,v, lu)
     end
 end
