@@ -470,8 +470,11 @@ Build the Hamiltonian defined by `ints` in the Slater Determinant Basis  specifi
 function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts, prob::RASCIAnsatz_2) 
     nr = prob.dim
     v = Matrix(1.0I, nr, nr)
+    
+    ras_help = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(prob, prob.max_h, prob.max_p)
+    @time lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, prob.ras_spaces)
     rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(v, prob)
-    lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
+    
     sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
     sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
     sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)

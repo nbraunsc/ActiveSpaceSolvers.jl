@@ -535,7 +535,6 @@ Build the Hamiltonian defined by `ints` in the Slater Determinant Basis  specifi
 function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts, prob::DDCIAnsatz) 
     nr = prob.dim
     v = Matrix(1.0I, nr, nr)
-    rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(v, prob)
     
     next_ddci,h,p = find_full_ddci(prob)
     rasvec2 = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(next_ddci, h, p)
@@ -543,6 +542,8 @@ function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts, prob::DDCIAnsatz)
 
     ras_help = fill_lu_helper_ddci(prob)
     @time lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, prob.ras_spaces)
+    
+    rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(v, prob)
     
     sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu2)
     sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu2)
