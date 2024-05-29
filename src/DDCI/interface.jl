@@ -536,9 +536,13 @@ function ActiveSpaceSolvers.build_H_matrix(ints::InCoreInts, prob::DDCIAnsatz)
     nr = prob.dim
     v = Matrix(1.0I, nr, nr)
     rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(v, prob)
-    lu = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec, prob.ras_spaces)
+    
     next_ddci,h,p = find_full_ddci(prob)
-    lu2 = fill_lu_ddci(next_ddci, h, p, nr, prob.ras_spaces)
+    rasvec2 = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(next_ddci, h, p)
+    @time lu2 = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec2, prob.ras_spaces)
+
+    ras_help = fill_lu_helper_ddci(prob)
+    @time lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, prob.ras_spaces)
     
     sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu2)
     sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu2)
