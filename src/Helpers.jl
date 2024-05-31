@@ -137,7 +137,7 @@ function invariant_orbital_rotations(cluster::Ansatz)
     else
         #return pairs of orbs within each ras subspace
         #ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI.make_rasorbs(cluster.ras_spaces[1], cluster.ras_spaces[2], cluster.ras_spaces[3], cluster.no)
-        ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI_2.make_ras_spaces(i.ras_spaces)
+        ras1, ras2, ras3 = ActiveSpaceSolvers.RASCI_2.make_ras_spaces(cluster.ras_spaces)
         for a in 1:length(ras1)
             for b in a+1:length(ras1)
                 push!(invar_pairs, (ras1[a],ras1[b]))
