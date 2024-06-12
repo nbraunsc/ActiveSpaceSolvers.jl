@@ -81,10 +81,10 @@ Get LinearMap with takes a vector and returns action of H on that vector
 function LinearMaps.LinearMap(ints::InCoreInts{T}, prob::DDCIAnsatz) where {T}
     next_ddci,h,p = find_full_ddci(prob)
     rasvec2 = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(next_ddci, h, p)
-    @time lu2 = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec2, prob.ras_spaces)
+    lu2 = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec2, prob.ras_spaces)
 
     ras_help = fill_lu_helper_ddci(prob)
-    @time lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, prob.ras_spaces)
+    lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, prob.ras_spaces)
 
     iters = 0
     function mymatvec(v)
@@ -94,9 +94,7 @@ function LinearMaps.LinearMap(ints::InCoreInts{T}, prob::DDCIAnsatz) where {T}
         iters += 1
         #@printf(" Iter: %4i", iters)
         print("Iter: ", iters, " ")
-        #@printf(" %-50s", "Compute sigma 1: ")
-        #flush(stdout)
-        #display(size(v))
+        flush(stdout)
        
         nr = 0
         if length(size(v)) == 1
@@ -132,10 +130,10 @@ Get LinearMap with takes a vector and returns action of H on that vector
 function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::DDCIAnsatz) where {T}
     next_ddci,h,p = find_full_ddci(prob)
     rasvec2 = ActiveSpaceSolvers.RASCI_2.fill_lu_helper(next_ddci, h, p)
-    @time lu2 = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec2, prob.ras_spaces)
+    lu2 = ActiveSpaceSolvers.RASCI_2.fill_lu(rasvec2, prob.ras_spaces)
 
     ras_help = fill_lu_helper_ddci(prob)
-    @time lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, prob.ras_spaces)
+    lu = ActiveSpaceSolvers.RASCI_2.fill_lu(ras_help, prob.ras_spaces)
 
     iters = 0
     function mymatvec(v)
@@ -155,9 +153,9 @@ function BlockDavidson.LinOpMat(ints::InCoreInts{T}, prob::DDCIAnsatz) where {T}
             nr = size(v)[2]
         end
         
-        @time sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu2)
-        @time sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu2)
-        @time sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
+        sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu2)
+        sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu2)
+        sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
         
         sig = sigma1 + sigma2 + sigma3
         
