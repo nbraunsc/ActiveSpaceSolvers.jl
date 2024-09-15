@@ -38,3 +38,17 @@ end
     @test isapprox(s2_new, s2, atol=10e-14)
 end
 
+@load "RASCI/ras_h12/_integrals.jld2"
+ecore = ints.h0
+@load "RASCI/ras_h12/FermiCG_test_data.jld2"
+
+@testset "Testing RASCI H12 agaisnt TPSCI Manual Test of RAS(S)" begin
+    ras = RASCIAnsatz_2(12,6,6,(4,4,4),max_h=1, max_p=1)
+    solver = SolverSettings(nroots=10, tol=1e-8, maxiter=300, verbose=1, package="davidson")
+    sol = solve(ints, ras, solver)
+    e_tpsci = e0.+ecore
+    @test isapprox(sol.energies, e_tpsci, atol=10e-10)
+end
+
+
+
