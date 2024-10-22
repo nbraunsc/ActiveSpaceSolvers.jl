@@ -69,36 +69,6 @@ function LinearMaps.LinearMap(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where {T
     function mymatvec(v)
         rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(v, prob)
         
-        #1x and singles
-        #zero_out = [(ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (3, 2, 1))), (ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (3, 3, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (4, 2, 0))), (ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (4, 1, 1)))]
-        
-        #2x and doubles
-        #zero_out = [ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (3, 1, 2)), 
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (2, 3, 1)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 2, 0), (2, 2, 2)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (3, 2, 1)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (2, 4, 0)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 1, 1), (2, 3, 1)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 0, 2), (3, 3, 0)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((4, 0, 2), (2, 4, 0)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (4, 0, 2)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (3, 2, 1)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 3, 0), (3, 1, 2)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (4, 1, 1)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (3, 3, 0)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 2, 1), (3, 2, 1)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 1, 2), (4, 2, 0)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((3, 1, 2), (3, 3, 0)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 4, 0), (4, 1, 1)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 4, 0), (4, 0, 2)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 3, 1), (4, 2, 0)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 3, 1), (4, 1, 1)),
-        #            ActiveSpaceSolvers.RASCI_2.RasBlock((2, 2, 2), (4, 2, 0))]
-        #
-        #for block1 in zero_out
-        #    rasvec.data[block1] .= 0
-        #end
-
         iters += 1
         #@printf(" Iter: %4i", iters)
         print("Iter: ", iters, " ")
@@ -110,10 +80,6 @@ function LinearMaps.LinearMap(ints::InCoreInts{T}, prob::RASCIAnsatz_2) where {T
         else 
             nr = size(v)[2]
         end
-        
-        #sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
-        #sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
-        #sigma3 = ActiveSpaceSolvers.RASCI_2.sigma_three(rasvec, ints, prob.ras_spaces, lu)
         
         sigma1 = ActiveSpaceSolvers.RASCI_2.sigma_one(rasvec, ints, prob.ras_spaces, lu)
         sigma2 = ActiveSpaceSolvers.RASCI_2.sigma_two(rasvec, ints, prob.ras_spaces, lu)
