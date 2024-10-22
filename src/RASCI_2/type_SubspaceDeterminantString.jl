@@ -22,7 +22,8 @@ function calc_nchk(n::Integer,k::Integer)
     return accum
 end
 
-binom_coeff = Array{Int,2}(undef,200,200)
+binom_coeff = Array{Int,2}(undef,400,400)
+#binom_coeff = Array{Int,2}(undef,200,200)
 #binom_coeff = Array{Int,2}(undef,100,100)
 fill!(binom_coeff, -1)
 for i in 0:size(binom_coeff,2)-1

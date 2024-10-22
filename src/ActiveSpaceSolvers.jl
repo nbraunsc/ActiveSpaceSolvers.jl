@@ -87,9 +87,14 @@ include("RASCI/RASCI.jl");
 import .RASCI: RASCIAnsatz
 export RASCIAnsatz
 
+include("DDCI/DDCI.jl");
+import .DDCI: DDCIAnsatz
+export DDCIAnsatz
+
 include("RASCI_2/RASCI_2.jl");
 import .RASCI_2: RASCIAnsatz_2
 export RASCIAnsatz_2
+
 
 
 # some methods

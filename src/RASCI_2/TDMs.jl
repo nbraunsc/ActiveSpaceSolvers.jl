@@ -21,7 +21,7 @@ using BlockDavidson
 
 
 """
-    compute_operator_c_a(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+    compute_operator_c_a(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 
 
 Compute representation of a operator between states `bra_v` and `ket_v` for alpha
@@ -30,8 +30,7 @@ Compute representation of a operator between states `bra_v` and `ket_v` for alph
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_c_a(bra::Solution{RASCIAnsatz_2,T}, 
-        ket::Solution{RASCIAnsatz_2,T}) where {T}
+function compute_operator_c_a(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 
     bra.ansatz.na-1 == ket.ansatz.na     || throw(DimzoensionMismatch)#={{{=#
     bra.ansatz.nb == ket.ansatz.nb     || throw(DimensionMismatch) 
@@ -96,7 +95,7 @@ function compute_operator_c_a(bra::Solution{RASCIAnsatz_2,T},
 end#=}}}=#
 
 """
-    compute_operator_c_b(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+    compute_operator_c_b(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 
 Compute representation of a operator between states `bra_v` and `ket_v` for beta 
 # Arguments
@@ -104,8 +103,7 @@ Compute representation of a operator between states `bra_v` and `ket_v` for beta
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_c_b(bra::Solution{RASCIAnsatz_2,T}, 
-                              ket::Solution{RASCIAnsatz_2,T}) where {T}
+function compute_operator_c_b(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 #Sign is wrong for beta
     bra.ansatz.na == ket.ansatz.na     || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb-1 == ket.ansatz.nb     || throw(DimensionMismatch) 
@@ -177,7 +175,7 @@ function compute_operator_c_b(bra::Solution{RASCIAnsatz_2,T},
 end#=}}}=#
 
 """
-    compute_operator_ca_aa(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+    compute_operator_ca_aa(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 
 Compute representation of a'a operators between states `bra_v` and `ket_v` for alpha-alpha
 # Arguments
@@ -185,8 +183,7 @@ Compute representation of a'a operators between states `bra_v` and `ket_v` for a
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_ca_aa(bra::Solution{RASCIAnsatz_2,T}, 
-                                ket::Solution{RASCIAnsatz_2,T}) where {T}
+function compute_operator_ca_aa(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     bra.ansatz.na == ket.ansatz.na     || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb == ket.ansatz.nb     || throw(DimensionMismatch) 
     
@@ -267,7 +264,7 @@ end#=}}}=#
     
 
 """
-    compute_operator_ca_bb(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+    compute_operator_ca_bb(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 
 Compute representation of a'a operators between states `bra_v` and `ket_v` for beta-beta 
 # Arguments
@@ -275,8 +272,7 @@ Compute representation of a'a operators between states `bra_v` and `ket_v` for b
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_ca_bb(bra::Solution{RASCIAnsatz_2,T}, 
-                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+function compute_operator_ca_bb(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     bra.ansatz.na == ket.ansatz.na     || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb == ket.ansatz.nb     || throw(DimensionMismatch) 
     
@@ -293,8 +289,8 @@ function compute_operator_ca_bb(bra::Solution{RASCIAnsatz_2,T},
     
     #   TDM[pq,s,t] = 
     tdm = zeros(Float64, bra_M, ket_M,  bra.ansatz.no, bra.ansatz.no)
-    
-excitation_list = make_excitation_classes_ca(ket.ansatz.ras_spaces)
+
+    excitation_list = make_excitation_classes_ca(ket.ansatz.ras_spaces)
     bra_rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(bra.vectors, bra.ansatz)
     ket_rasvec = ActiveSpaceSolvers.RASCI_2.RASVector(ket.vectors, ket.ansatz)
 
@@ -357,7 +353,7 @@ excitation_list = make_excitation_classes_ca(ket.ansatz.ras_spaces)
 end#=}}}=#
     
 """
-    compute_operator_ca_ab(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+    compute_operator_ca_ab(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 
 Compute representation of a'a operators between states `bra_v` and `ket_v` for alpha-beta 
 # Arguments
@@ -365,8 +361,7 @@ Compute representation of a'a operators between states `bra_v` and `ket_v` for a
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_ca_ab(bra::Solution{RASCIAnsatz_2,T}, 
-                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+function compute_operator_ca_ab(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     bra.ansatz.na-1 == ket.ansatz.na     || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb+1 == ket.ansatz.nb     || throw(DimensionMismatch) 
     
@@ -479,7 +474,7 @@ function compute_operator_ca_ab(bra::Solution{RASCIAnsatz_2,T},
 end#=}}}=#
 
 """
-    compute_operator_cc_bb(bra::solution{RASCIAnsatz_2,t}, ket::solution{RASCIAnsatz_2,t}) where {t}
+    compute_operator_cc_bb(bra::solution{A,t}, ket::solution{A,t}) where {t}
 
 Compute representation of a'a' operators between states `bra_v` and `ket_v` for beta-beta 
 # Arguments
@@ -487,8 +482,7 @@ Compute representation of a'a' operators between states `bra_v` and `ket_v` for 
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_cc_bb(bra::Solution{RASCIAnsatz_2,T}, 
-                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+function compute_operator_cc_bb(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     bra.ansatz.na == ket.ansatz.na     || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb-2 == ket.ansatz.nb     || throw(DimensionMismatch) 
 
@@ -570,7 +564,7 @@ function compute_operator_cc_bb(bra::Solution{RASCIAnsatz_2,T},
 end#=}}}=#
 
 """
-    compute_operator_cc_aa(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+    compute_operator_cc_aa(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 
 Compute representation of a'a' operators between states `bra_v` and `ket_v` for alpha-alpha 
 # Arguments
@@ -578,8 +572,7 @@ Compute representation of a'a' operators between states `bra_v` and `ket_v` for 
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_cc_aa(bra::Solution{RASCIAnsatz_2,T}, 
-                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+function compute_operator_cc_aa(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     bra.ansatz.na-2 == ket.ansatz.na     || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb == ket.ansatz.nb     || throw(DimensionMismatch) 
     
@@ -662,7 +655,7 @@ function compute_operator_cc_aa(bra::Solution{RASCIAnsatz_2,T},
 end#=}}}=#
     
 """
-    compute_operator_cc_ab(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+    compute_operator_cc_ab(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 
 Compute representation of a'a' operators between states `bra_v` and `ket_v` for alpha-beta 
 # Arguments
@@ -670,8 +663,7 @@ Compute representation of a'a' operators between states `bra_v` and `ket_v` for 
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_cc_ab(bra::Solution{RASCIAnsatz_2,T}, 
-                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+function compute_operator_cc_ab(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     bra.ansatz.na-1 == ket.ansatz.na     || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb-1 == ket.ansatz.nb     || throw(DimensionMismatch) 
     
@@ -782,7 +774,7 @@ function compute_operator_cc_ab(bra::Solution{RASCIAnsatz_2,T},
 end#=}}}=#
     
 """
-    compute_operator_cca_aaa(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+    compute_operator_cca_aaa(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 
 Compute representation of a'a'a operators between states `bra_v` and `ket_v` for alpha-alpha-alpha 
 # Arguments
@@ -790,8 +782,7 @@ Compute representation of a'a'a operators between states `bra_v` and `ket_v` for
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_cca_aaa(bra::Solution{RASCIAnsatz_2,T}, 
-                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+function compute_operator_cca_aaa(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     bra.ansatz.na - 1 == ket.ansatz.na || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb == ket.ansatz.nb     || throw(DimensionMismatch) 
     
@@ -880,7 +871,7 @@ function compute_operator_cca_aaa(bra::Solution{RASCIAnsatz_2,T},
 end#=}}}=#
     
 """
-    compute_operator_cca_bbb(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+    compute_operator_cca_bbb(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 
 Compute representation of a'a'a operators between states `bra_v` and `ket_v` for beta-beta-beta 
 # Arguments
@@ -888,8 +879,7 @@ Compute representation of a'a'a operators between states `bra_v` and `ket_v` for
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_cca_bbb(bra::Solution{RASCIAnsatz_2,T}, 
-                                                   ket::Solution{RASCIAnsatz_2,T}) where {T}
+function compute_operator_cca_bbb(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     bra.ansatz.na  == ket.ansatz.na || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb - 1 == ket.ansatz.nb  || throw(DimensionMismatch) 
 
@@ -982,7 +972,7 @@ function compute_operator_cca_bbb(bra::Solution{RASCIAnsatz_2,T},
 end#=}}}=#
     
 """
-    compute_operator_cca_aba(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+    compute_operator_cca_aba(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 
 Compute representation of a'a'a operators between states `bra_v` and `ket_v` for alpha-beta-alpha 
 # Arguments
@@ -990,8 +980,7 @@ Compute representation of a'a'a operators between states `bra_v` and `ket_v` for
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_cca_aba(bra::Solution{RASCIAnsatz_2,T}, 
-                                                     ket::Solution{RASCIAnsatz_2,T}) where {T}
+function compute_operator_cca_aba(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     bra.ansatz.na  == ket.ansatz.na || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb - 1 == ket.ansatz.nb  || throw(DimensionMismatch) 
     
@@ -1109,7 +1098,7 @@ function compute_operator_cca_aba(bra::Solution{RASCIAnsatz_2,T},
 end#=}}}=#
 
 """
-    compute_operator_cca_abb(bra::Solution{RASCIAnsatz_2,T}, ket::Solution{RASCIAnsatz_2,T}) where {T}
+    compute_operator_cca_abb(bra::Solution{A,T}, ket::Solution{A,T}) where {T, A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
 
 Compute representation of a'a'a operators between states `bra_v` and `ket_v` for alpha-beta-beta 
 # Arguments
@@ -1117,8 +1106,7 @@ Compute representation of a'a'a operators between states `bra_v` and `ket_v` for
 - `ket`: solutions for the right hand side
 
 """
-function compute_operator_cca_abb(bra::Solution{RASCIAnsatz_2}, 
-                                                     ket::Solution{RASCIAnsatz_2}) 
+function compute_operator_cca_abb(bra::Solution{A}, ket::Solution{A}) where {T,A<:Union{RASCIAnsatz_2, DDCIAnsatz}}
     bra.ansatz.na - 1 == ket.ansatz.na || throw(DimensionMismatch) #={{{=#
     bra.ansatz.nb == ket.ansatz.nb     || throw(DimensionMismatch) 
     
