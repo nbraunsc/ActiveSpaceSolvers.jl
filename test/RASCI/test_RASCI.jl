@@ -11,7 +11,7 @@ using JLD2
 #ints = InCoreInts(h0, h1, h2)
 #@load "../ActiveSpaceSolvers.jl/test/RASCI/ras_h6/_integrals.jld2"
 #@load "../ActiveSpaceSolvers.jl/test/RASCI/ras_h12/_integrals.jld2"
-@load "/Users/nicole/My Drive/code/ActiveSpaceSolvers.jl/test/RASCI/ras_h12/_integrals.jld2"
+@load "RASCI/ras_h12/_integrals.jld2"
 ecore = ints.h0
 
 clusters_in    = [(1:4),(5:8),(9:12)]
@@ -79,7 +79,7 @@ e0, v = FermiCG.tps_ci_direct(ci_vector, cluster_ops, clustered_ham)
 clustered_S2 = FermiCG.extract_S2(ci_vector.clusters)
 @time s2 = FermiCG.compute_expectation_value_parallel(v, cluster_ops, clustered_S2)
 
-@save "/Users/nicole/My Drive/code/ActiveSpaceSolvers.jl/test/RASCI/ras_h12/FermiCG_test_data.jld2" clusters e0 v s2 ecore cluster_bases
+@save "RASCI/ras_h12/FermiCG_test_data.jld2" clusters e0 v s2 ecore cluster_bases
 
 #@save "../ActiveSpaceSolvers.jl/test/RASCI/ras_h12/FermiCG_test_data_no_os.jld2" clusters cluster_bases e0 v s2 ecore
 
